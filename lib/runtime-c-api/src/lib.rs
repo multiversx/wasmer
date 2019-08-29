@@ -98,6 +98,7 @@ pub mod export;
 pub mod global;
 pub mod import;
 pub mod instance;
+pub mod metering;
 pub mod memory;
 pub mod module;
 pub mod table;

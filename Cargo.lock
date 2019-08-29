@@ -1634,6 +1634,7 @@ dependencies = [
  "wasmer-runtime 0.7.0",
  "wasmer-runtime-core 0.7.0",
  "wasmer-middleware-common 0.7.0",
+ "wasmer-singlepass-backend 0.7.0",
 ]
 
 [[package]]
