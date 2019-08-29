@@ -34,7 +34,7 @@ use wasmer_runtime_core::{
     },
     vm::{self, LocalGlobal, LocalTable, INTERNALS_SIZE},
 };
-use wasmparser::{Operator, Type as WpType, TypeOrFuncType as WpTypeOrFuncType};
+use wasmparser::{MemoryImmediate, Operator, Type as WpType, TypeOrFuncType as WpTypeOrFuncType};
 
 lazy_static! {
     /// Performs a System V call to `target` with [stack_top..stack_base] as the argument list, from right to left.
@@ -1465,7 +1465,8 @@ impl X64FunctionCode {
         a: &mut Assembler,
         m: &mut Machine,
         addr: Location,
-        offset: usize,
+        memarg: &MemoryImmediate,
+        check_alignment: bool,
         value_size: usize,
         cb: F,
     ) {
@@ -1487,7 +1488,6 @@ impl X64FunctionCode {
 
         let tmp_addr = m.acquire_temp_gpr().unwrap();
         let tmp_base = m.acquire_temp_gpr().unwrap();
-        let tmp_bound = m.acquire_temp_gpr().unwrap();
 
         // Load base into temporary register.
         a.emit_mov(
@@ -1500,6 +1500,8 @@ impl X64FunctionCode {
         );
 
         if need_check {
+            let tmp_bound = m.acquire_temp_gpr().unwrap();
+
             a.emit_mov(
                 Size::S64,
                 Location::Memory(
@@ -1513,14 +1515,14 @@ impl X64FunctionCode {
             a.emit_mov(Size::S32, addr, Location::GPR(tmp_addr));
 
             // This branch is used for emitting "faster" code for the special case of (offset + value_size) not exceeding u32 range.
-            match (offset as u32).checked_add(value_size as u32) {
+            match (memarg.offset as u32).checked_add(value_size as u32) {
                 Some(x) => {
                     a.emit_add(Size::S64, Location::Imm32(x), Location::GPR(tmp_addr));
                 }
                 None => {
                     a.emit_add(
                         Size::S64,
-                        Location::Imm32(offset as u32),
+                        Location::Imm32(memarg.offset as u32),
                         Location::GPR(tmp_addr),
                     );
                     a.emit_add(
@@ -1535,19 +1537,38 @@ impl X64FunctionCode {
             a.emit_add(Size::S64, Location::GPR(tmp_base), Location::GPR(tmp_addr));
             a.emit_cmp(Size::S64, Location::GPR(tmp_bound), Location::GPR(tmp_addr));
             a.emit_conditional_trap(Condition::Above);
-        }
 
-        m.release_temp_gpr(tmp_bound);
+            m.release_temp_gpr(tmp_bound);
+        }
 
         // Calculates the real address, and loads from it.
         a.emit_mov(Size::S32, addr, Location::GPR(tmp_addr));
         a.emit_add(
             Size::S64,
-            Location::Imm32(offset as u32),
+            Location::Imm32(memarg.offset as u32),
             Location::GPR(tmp_addr),
         );
         a.emit_add(Size::S64, Location::GPR(tmp_base), Location::GPR(tmp_addr));
         m.release_temp_gpr(tmp_base);
+
+        let align = match memarg.flags & 3 {
+            0 => 1,
+            1 => 2,
+            2 => 4,
+            3 => 8,
+            _ => unreachable!("this match is fully covered"),
+        };
+        if check_alignment && align != 1 {
+            let tmp_aligncheck = m.acquire_temp_gpr().unwrap();
+            //let tmp_mask = m.acquire_temp_gpr().unwrap();
+            a.emit_mov(Size::S32, Location::GPR(tmp_addr), Location::GPR(tmp_aligncheck));
+            //a.emit_mov(Size::S64, Location::Imm64(align - 1), Location::GPR(tmp_mask));
+            //a.emit_and(Size::S64, Location::GPR(tmp_mask), Location::GPR(tmp_aligncheck));
+            a.emit_and(Size::S64, Location::Imm32(align - 1), Location::GPR(tmp_aligncheck));
+            a.emit_conditional_trap(Condition::NotEqual);
+            //m.release_temp_gpr(tmp_mask);
+            m.release_temp_gpr(tmp_aligncheck);
+        }
 
         cb(a, m, tmp_addr);
 
@@ -4144,7 +4165,8 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     a,
                     &mut self.machine,
                     target,
-                    memarg.offset as usize,
+                    memarg,
+                    false,
                     4,
                     |a, m, addr| {
                         Self::emit_relaxed_binop(
@@ -4174,7 +4196,8 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     a,
                     &mut self.machine,
                     target,
-                    memarg.offset as usize,
+                    memarg,
+                    false,
                     4,
                     |a, m, addr| {
                         Self::emit_relaxed_binop(
@@ -4204,7 +4227,8 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     a,
                     &mut self.machine,
                     target,
-                    memarg.offset as usize,
+                    memarg,
+                    false,
                     1,
                     |a, m, addr| {
                         Self::emit_relaxed_zx_sx(
@@ -4235,7 +4259,8 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     a,
                     &mut self.machine,
                     target,
-                    memarg.offset as usize,
+                    memarg,
+                    false,
                     1,
                     |a, m, addr| {
                         Self::emit_relaxed_zx_sx(
@@ -4266,7 +4291,8 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     a,
                     &mut self.machine,
                     target,
-                    memarg.offset as usize,
+                    memarg,
+                    false,
                     2,
                     |a, m, addr| {
                         Self::emit_relaxed_zx_sx(
@@ -4297,7 +4323,8 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     a,
                     &mut self.machine,
                     target,
-                    memarg.offset as usize,
+                    memarg,
+                    false,
                     2,
                     |a, m, addr| {
                         Self::emit_relaxed_zx_sx(
@@ -4324,7 +4351,8 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     a,
                     &mut self.machine,
                     target_addr,
-                    memarg.offset as usize,
+                    memarg,
+                    false,
                     4,
                     |a, m, addr| {
                         Self::emit_relaxed_binop(
@@ -4350,7 +4378,8 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     a,
                     &mut self.machine,
                     target_addr,
-                    memarg.offset as usize,
+                    memarg,
+                    false,
                     4,
                     |a, m, addr| {
                         Self::emit_relaxed_binop(
@@ -4376,7 +4405,8 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     a,
                     &mut self.machine,
                     target_addr,
-                    memarg.offset as usize,
+                    memarg,
+                    false,
                     1,
                     |a, m, addr| {
                         Self::emit_relaxed_binop(
@@ -4402,7 +4432,8 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     a,
                     &mut self.machine,
                     target_addr,
-                    memarg.offset as usize,
+                    memarg,
+                    false,
                     2,
                     |a, m, addr| {
                         Self::emit_relaxed_binop(
@@ -4432,7 +4463,8 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     a,
                     &mut self.machine,
                     target,
-                    memarg.offset as usize,
+                    memarg,
+                    false,
                     8,
                     |a, m, addr| {
                         Self::emit_relaxed_binop(
@@ -4462,7 +4494,8 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     a,
                     &mut self.machine,
                     target,
-                    memarg.offset as usize,
+                    memarg,
+                    false,
                     8,
                     |a, m, addr| {
                         Self::emit_relaxed_binop(
@@ -4492,7 +4525,8 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     a,
                     &mut self.machine,
                     target,
-                    memarg.offset as usize,
+                    memarg,
+                    false,
                     1,
                     |a, m, addr| {
                         Self::emit_relaxed_zx_sx(
@@ -4523,7 +4557,8 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     a,
                     &mut self.machine,
                     target,
-                    memarg.offset as usize,
+                    memarg,
+                    false,
                     1,
                     |a, m, addr| {
                         Self::emit_relaxed_zx_sx(
@@ -4554,7 +4589,8 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     a,
                     &mut self.machine,
                     target,
-                    memarg.offset as usize,
+                    memarg,
+                    false,
                     2,
                     |a, m, addr| {
                         Self::emit_relaxed_zx_sx(
@@ -4585,7 +4621,8 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     a,
                     &mut self.machine,
                     target,
-                    memarg.offset as usize,
+                    memarg,
+                    false,
                     2,
                     |a, m, addr| {
                         Self::emit_relaxed_zx_sx(
@@ -4616,7 +4653,8 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     a,
                     &mut self.machine,
                     target,
-                    memarg.offset as usize,
+                    memarg,
+                    false,
                     4,
                     |a, m, addr| {
                         match ret {
@@ -4657,7 +4695,8 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     a,
                     &mut self.machine,
                     target,
-                    memarg.offset as usize,
+                    memarg,
+                    false,
                     4,
                     |a, m, addr| {
                         Self::emit_relaxed_zx_sx(
@@ -4684,7 +4723,8 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     a,
                     &mut self.machine,
                     target_addr,
-                    memarg.offset as usize,
+                    memarg,
+                    false,
                     8,
                     |a, m, addr| {
                         Self::emit_relaxed_binop(
@@ -4710,7 +4750,8 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     a,
                     &mut self.machine,
                     target_addr,
-                    memarg.offset as usize,
+                    memarg,
+                    false,
                     8,
                     |a, m, addr| {
                         Self::emit_relaxed_binop(
@@ -4736,7 +4777,8 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     a,
                     &mut self.machine,
                     target_addr,
-                    memarg.offset as usize,
+                    memarg,
+                    false,
                     1,
                     |a, m, addr| {
                         Self::emit_relaxed_binop(
@@ -4762,7 +4804,8 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     a,
                     &mut self.machine,
                     target_addr,
-                    memarg.offset as usize,
+                    memarg,
+                    false,
                     2,
                     |a, m, addr| {
                         Self::emit_relaxed_binop(
@@ -4788,7 +4831,8 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     a,
                     &mut self.machine,
                     target_addr,
-                    memarg.offset as usize,
+                    memarg,
+                    false,
                     4,
                     |a, m, addr| {
                         Self::emit_relaxed_binop(
@@ -4976,6 +5020,471 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                         self.value_stack.push(loc);
                     }
                 }
+            }
+            Operator::Fence { flags: _ } => {
+                // Fence is a nop.
+                //
+                // Fence was added to preserve information about fences from
+                // source languages. If in the future Wasm extends the memory
+                // model, and if we hadn't recorded what fences used to be there,
+                // it would lead to data races that weren't present in the
+                // original source language.
+            }
+            Operator::I32AtomicLoad { ref memarg } => {
+                let target =
+                    get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
+                let ret = self.machine.acquire_locations(
+                    a,
+                    &[(WpType::I32, MachineValue::WasmStack(self.value_stack.len()))],
+                    false,
+                )[0];
+                self.value_stack.push(ret);
+
+                Self::emit_memory_op(
+                    module_info,
+                    &self.config,
+                    a,
+                    &mut self.machine,
+                    target,
+                    memarg,
+                    true,
+                    4,
+                    |a, m, addr| {
+                        Self::emit_relaxed_binop(
+                            a,
+                            m,
+                            Assembler::emit_mov,
+                            Size::S32,
+                            Location::Memory(addr, 0),
+                            ret,
+                        );
+                    },
+                );
+            }
+            Operator::I32AtomicLoad8U { ref memarg } => {
+                let target =
+                    get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
+                let ret = self.machine.acquire_locations(
+                    a,
+                    &[(WpType::I32, MachineValue::WasmStack(self.value_stack.len()))],
+                    false,
+                )[0];
+                self.value_stack.push(ret);
+
+                Self::emit_memory_op(
+                    module_info,
+                    &self.config,
+                    a,
+                    &mut self.machine,
+                    target,
+                    memarg,
+                    true,
+                    1,
+                    |a, m, addr| {
+                        Self::emit_relaxed_zx_sx(
+                            a,
+                            m,
+                            Assembler::emit_movzx,
+                            Size::S8,
+                            Location::Memory(addr, 0),
+                            Size::S32,
+                            ret,
+                        );
+                    },
+                );
+            }
+            Operator::I32AtomicLoad16U { ref memarg } => {
+                let target =
+                    get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
+                let ret = self.machine.acquire_locations(
+                    a,
+                    &[(WpType::I32, MachineValue::WasmStack(self.value_stack.len()))],
+                    false,
+                )[0];
+                self.value_stack.push(ret);
+
+                Self::emit_memory_op(
+                    module_info,
+                    &self.config,
+                    a,
+                    &mut self.machine,
+                    target,
+                    memarg,
+                    true,
+                    2,
+                    |a, m, addr| {
+                        Self::emit_relaxed_zx_sx(
+                            a,
+                            m,
+                            Assembler::emit_movzx,
+                            Size::S16,
+                            Location::Memory(addr, 0),
+                            Size::S32,
+                            ret,
+                        );
+                    },
+                );
+            }
+            Operator::I32AtomicStore { ref memarg } => {
+                let target_value =
+                    get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
+                let target_addr =
+                    get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
+
+                Self::emit_memory_op(
+                    module_info,
+                    &self.config,
+                    a,
+                    &mut self.machine,
+                    target_addr,
+                    memarg,
+                    true,
+                    4,
+                    |a, m, addr| {
+                        Self::emit_relaxed_binop(
+                            a,
+                            m,
+                            Assembler::emit_xchg,
+                            Size::S32,
+                            target_value,
+                            Location::Memory(addr, 0),
+                        );
+                    },
+                );
+            }
+            Operator::I32AtomicStore8 { ref memarg } => {
+                let target_value =
+                    get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
+                let target_addr =
+                    get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
+
+                Self::emit_memory_op(
+                    module_info,
+                    &self.config,
+                    a,
+                    &mut self.machine,
+                    target_addr,
+                    memarg,
+                    true,
+                    1,
+                    |a, m, addr| {
+                        Self::emit_relaxed_binop(
+                            a,
+                            m,
+                            Assembler::emit_xchg,
+                            Size::S8,
+                            target_value,
+                            Location::Memory(addr, 0),
+                        );
+                    },
+                );
+            }
+            Operator::I32AtomicStore16 { ref memarg } => {
+                let target_value =
+                    get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
+                let target_addr =
+                    get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
+
+                Self::emit_memory_op(
+                    module_info,
+                    &self.config,
+                    a,
+                    &mut self.machine,
+                    target_addr,
+                    memarg,
+                    true,
+                    2,
+                    |a, m, addr| {
+                        Self::emit_relaxed_binop(
+                            a,
+                            m,
+                            Assembler::emit_xchg,
+                            Size::S16,
+                            target_value,
+                            Location::Memory(addr, 0),
+                        );
+                    },
+                );
+            }
+            Operator::I64AtomicLoad { ref memarg } => {
+                let target =
+                    get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
+                let ret = self.machine.acquire_locations(
+                    a,
+                    &[(WpType::I64, MachineValue::WasmStack(self.value_stack.len()))],
+                    false,
+                )[0];
+                self.value_stack.push(ret);
+
+                Self::emit_memory_op(
+                    module_info,
+                    &self.config,
+                    a,
+                    &mut self.machine,
+                    target,
+                    memarg,
+                    true,
+                    8,
+                    |a, m, addr| {
+                        Self::emit_relaxed_binop(
+                            a,
+                            m,
+                            Assembler::emit_mov,
+                            Size::S64,
+                            Location::Memory(addr, 0),
+                            ret,
+                        );
+                    },
+                );
+            }
+            Operator::I64AtomicLoad8U { ref memarg } => {
+                let target =
+                    get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
+                let ret = self.machine.acquire_locations(
+                    a,
+                    &[(WpType::I64, MachineValue::WasmStack(self.value_stack.len()))],
+                    false,
+                )[0];
+                self.value_stack.push(ret);
+
+                Self::emit_memory_op(
+                    module_info,
+                    &self.config,
+                    a,
+                    &mut self.machine,
+                    target,
+                    memarg,
+                    true,
+                    1,
+                    |a, m, addr| {
+                        Self::emit_relaxed_zx_sx(
+                            a,
+                            m,
+                            Assembler::emit_movzx,
+                            Size::S8,
+                            Location::Memory(addr, 0),
+                            Size::S64,
+                            ret,
+                        );
+                    },
+                );
+            }
+            Operator::I64AtomicLoad16U { ref memarg } => {
+                let target =
+                    get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
+                let ret = self.machine.acquire_locations(
+                    a,
+                    &[(WpType::I64, MachineValue::WasmStack(self.value_stack.len()))],
+                    false,
+                )[0];
+                self.value_stack.push(ret);
+
+                Self::emit_memory_op(
+                    module_info,
+                    &self.config,
+                    a,
+                    &mut self.machine,
+                    target,
+                    memarg,
+                    true,
+                    2,
+                    |a, m, addr| {
+                        Self::emit_relaxed_zx_sx(
+                            a,
+                            m,
+                            Assembler::emit_movzx,
+                            Size::S16,
+                            Location::Memory(addr, 0),
+                            Size::S64,
+                            ret,
+                        );
+                    },
+                );
+            }
+            Operator::I64AtomicLoad32U { ref memarg } => {
+                let target =
+                    get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
+                let ret = self.machine.acquire_locations(
+                    a,
+                    &[(WpType::I64, MachineValue::WasmStack(self.value_stack.len()))],
+                    false,
+                )[0];
+                self.value_stack.push(ret);
+
+                Self::emit_memory_op(
+                    module_info,
+                    &self.config,
+                    a,
+                    &mut self.machine,
+                    target,
+                    memarg,
+                    true,
+                    4,
+                    |a, m, addr| {
+                        match ret {
+                            Location::GPR(_) => {}
+                            Location::Memory(base, offset) => {
+                                a.emit_mov(
+                                    Size::S32,
+                                    Location::Imm32(0),
+                                    Location::Memory(base, offset + 4),
+                                ); // clear upper bits
+                            }
+                            _ => unreachable!(),
+                        }
+                        Self::emit_relaxed_binop(
+                            a,
+                            m,
+                            Assembler::emit_mov,
+                            Size::S32,
+                            Location::Memory(addr, 0),
+                            ret,
+                        );
+                    },
+                );
+            }
+            Operator::I64AtomicStore { ref memarg } => {
+                let target_value =
+                    get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
+                let target_addr =
+                    get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
+
+                Self::emit_memory_op(
+                    module_info,
+                    &self.config,
+                    a,
+                    &mut self.machine,
+                    target_addr,
+                    memarg,
+                    true,
+                    8,
+                    |a, m, addr| {
+                        Self::emit_relaxed_binop(
+                            a,
+                            m,
+                            Assembler::emit_xchg,
+                            Size::S64,
+                            target_value,
+                            Location::Memory(addr, 0),
+                        );
+                    },
+                );
+            }
+            Operator::I64AtomicStore8 { ref memarg } => {
+                let target_value =
+                    get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
+                let target_addr =
+                    get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
+
+                Self::emit_memory_op(
+                    module_info,
+                    &self.config,
+                    a,
+                    &mut self.machine,
+                    target_addr,
+                    memarg,
+                    true,
+                    1,
+                    |a, m, addr| {
+                        Self::emit_relaxed_binop(
+                            a,
+                            m,
+                            Assembler::emit_xchg,
+                            Size::S8,
+                            target_value,
+                            Location::Memory(addr, 0),
+                        );
+                    },
+                );
+            }
+            Operator::I64AtomicStore16 { ref memarg } => {
+                let target_value =
+                    get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
+                let target_addr =
+                    get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
+
+                Self::emit_memory_op(
+                    module_info,
+                    &self.config,
+                    a,
+                    &mut self.machine,
+                    target_addr,
+                    memarg,
+                    true,
+                    2,
+                    |a, m, addr| {
+                        Self::emit_relaxed_binop(
+                            a,
+                            m,
+                            Assembler::emit_xchg,
+                            Size::S16,
+                            target_value,
+                            Location::Memory(addr, 0),
+                        );
+                    },
+                );
+            }
+            Operator::I64AtomicStore32 { ref memarg } => {
+                let target_value =
+                    get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
+                let target_addr =
+                    get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
+
+                Self::emit_memory_op(
+                    module_info,
+                    &self.config,
+                    a,
+                    &mut self.machine,
+                    target_addr,
+                    memarg,
+                    true,
+                    4,
+                    |a, m, addr| {
+                        Self::emit_relaxed_binop(
+                            a,
+                            m,
+                            Assembler::emit_xchg,
+                            Size::S32,
+                            target_value,
+                            Location::Memory(addr, 0),
+                        );
+                    },
+                );
+            }
+            Operator::I32AtomicRmwAdd { ref memarg } => {
+                let loc = get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
+                let target =
+                    get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
+                let ret = self.machine.acquire_locations(
+                    a,
+                    &[(WpType::I32, MachineValue::WasmStack(self.value_stack.len()))],
+                    false,
+                )[0];
+                self.value_stack.push(ret);
+
+                let value = self.machine.acquire_temp_gpr().unwrap();
+                a.emit_mov(
+                    Size::S32,
+                    loc,
+                    Location::GPR(value));
+                Self::emit_memory_op(
+                    module_info,
+                    &self.config,
+                    a,
+                    &mut self.machine,
+                    target,
+                    memarg,
+                    true,
+                    4,
+                    |a, _m, addr| {
+                        a.emit_lock_xadd(Size::S32, Location::GPR(value), Location::Memory(addr, 0))
+                    }
+                );
+                a.emit_mov(
+                    Size::S32,
+                    Location::GPR(value),
+                    ret);
+                self.machine.release_temp_gpr(value);
             }
             _ => {
                 return Err(CodegenError {
