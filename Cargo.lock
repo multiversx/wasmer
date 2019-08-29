@@ -1633,6 +1633,7 @@ dependencies = [
  "libc 0.2.62 (registry+https://github.com/rust-lang/crates.io-index)",
  "wasmer-runtime 0.7.0",
  "wasmer-runtime-core 0.7.0",
+ "wasmer-middleware-common 0.7.0",
 ]
 
 [[package]]
