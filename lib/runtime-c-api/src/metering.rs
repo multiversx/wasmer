@@ -1,5 +1,6 @@
 use crate::{
     error::{update_last_error},
+    instance::{wasmer_instance_t},
     module::{wasmer_module_t},
     wasmer_result_t,
 };
@@ -10,6 +11,7 @@ use std::{slice};
 use wasmer_middleware_common::metering;
 use wasmer_runtime_core::backend::{Compiler};
 use wasmer_runtime_core::{compile_with};
+//use wasmer_runtime::{Instance};
 
 /// Creates a new Module with gas limit from the given wasm bytes.
 ///
@@ -51,6 +53,37 @@ fn get_metered_compiler(limit: u64) -> impl Compiler {
     c
 }
 
+// returns gas used
+#[allow(clippy::cast_ptr_alignment)]
+#[no_mangle]
+#[cfg(feature = "metering")]
+pub unsafe extern "C" fn wasmer_instance_get_points_used(
+    _: *mut wasmer_instance_t,
+) ->  u32 { // TODO: return u64
+    0
+    // TODO
+//    let instance_ref = &*(instance as *const Instance);
+//    let points = metering::get_points_used(instance);
+//    points as u32
+}
+
+// sets gas used
+#[allow(clippy::cast_ptr_alignment)]
+#[no_mangle]
+#[cfg(feature = "metering")]
+pub unsafe extern "C" fn wasmer_instance_set_points_used(
+    _: *mut wasmer_instance_t,
+    _: u32,
+) {
+    // TODO
+//    let instance_ref = &*(instance as *const Instance);
+//    metering::set_points_used(instance, new_gas as u64)
+}
+
+
+/*** placeholder implementation if metering feature off ***/
+//
+
 // Without metering, wasmer_compile_with_limit is a copy of wasmer_compile
 #[cfg(not(feature = "metering"))]
 #[no_mangle]
@@ -72,3 +105,22 @@ pub unsafe extern "C" fn wasmer_compile_with_limit(
     *module = Box::into_raw(Box::new(new_module)) as *mut wasmer_module_t;
     wasmer_result_t::WASMER_OK
 }
+
+// returns gas used
+#[allow(clippy::cast_ptr_alignment)]
+#[no_mangle]
+#[cfg(not(feature = "metering"))]
+pub unsafe extern "C" fn wasmer_instance_get_points_used(
+    _: *mut wasmer_instance_t,
+) ->  u32 {
+    0
+}
+
+// sets gas used
+#[allow(clippy::cast_ptr_alignment)]
+#[no_mangle]
+#[cfg(not(feature = "metering"))]
+pub unsafe extern "C" fn wasmer_instance_set_points_used(
+    _: *mut wasmer_instance_t,
+    _: u32,
+) { }
