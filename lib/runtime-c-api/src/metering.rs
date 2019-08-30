@@ -19,10 +19,10 @@ pub unsafe extern "C" fn wasmer_compile_with_limit(
     module: *mut *mut wasmer_module_t,
     wasm_bytes: *mut u8,
     wasm_bytes_len: u32,
-    gas_limit: u32, // TODO: allow more than 4 billion?
+    gas_limit: u64,
 ) -> wasmer_result_t {
     let bytes: &[u8] = slice::from_raw_parts_mut(wasm_bytes, wasm_bytes_len as usize);
-    let result = wasmer_runtime_core::compile_with(bytes, &get_metered_compiler(gas_limit as u64));
+    let result = wasmer_runtime_core::compile_with(bytes, &get_metered_compiler(gas_limit));
     let new_module = match result {
         Ok(instance) => instance,
         Err(error) => {
@@ -80,7 +80,7 @@ pub unsafe extern "C" fn wasmer_compile_with_limit(
     module: *mut *mut wasmer_module_t,
     wasm_bytes: *mut u8,
     wasm_bytes_len: u32,
-    _: u32, // TODO: allow more than 4 billion?
+    _: u64,
 ) -> wasmer_result_t {
     let bytes: &[u8] = slice::from_raw_parts_mut(wasm_bytes, wasm_bytes_len as usize);
     // TODO: this implicitly uses default_compiler() is that proper? maybe we override default_compiler
