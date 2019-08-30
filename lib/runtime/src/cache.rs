@@ -109,6 +109,7 @@ impl Cache for FileSystemCache {
 
     fn store(&mut self, key: WasmHash, module: Module) -> Result<(), CacheError> {
         let filename = key.encode();
+        // TODO: is the backend enough, or do we need the metering as well?
         let backend_str = module.info().backend.to_string();
         let mut new_path_buf = self.path.clone();
         new_path_buf.push(backend_str);
