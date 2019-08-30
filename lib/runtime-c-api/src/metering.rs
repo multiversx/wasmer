@@ -1,13 +1,10 @@
 use crate::{
-    error::{update_last_error},
-    instance::{wasmer_instance_t},
-    module::{wasmer_module_t},
-    wasmer_result_t,
+    error::update_last_error, instance::wasmer_instance_t, module::wasmer_module_t, wasmer_result_t,
 };
-use std::{slice};
+use std::slice;
 
 #[cfg(feature = "metering")]
-use wasmer_runtime_core::backend::{Compiler};
+use wasmer_runtime_core::backend::Compiler;
 
 /// Creates a new Module with gas limit from the given wasm bytes.
 ///
@@ -54,9 +51,7 @@ fn get_metered_compiler(limit: u64) -> impl Compiler {
 #[allow(clippy::cast_ptr_alignment)]
 #[no_mangle]
 #[cfg(feature = "metering")]
-pub unsafe extern "C" fn wasmer_instance_get_points_used(
-    instance: *mut wasmer_instance_t,
-) ->  u64 {
+pub unsafe extern "C" fn wasmer_instance_get_points_used(instance: *mut wasmer_instance_t) ->  u64 {
     use wasmer_middleware_common::metering;
     let instance = &*(instance as *const wasmer_runtime::Instance);
     let points = metering::get_points_used(instance);
@@ -76,9 +71,7 @@ pub unsafe extern "C" fn wasmer_instance_set_points_used(
     metering::set_points_used(instance, new_gas)
 }
 
-
 /*** placeholder implementation if metering feature off ***/
-//
 
 // Without metering, wasmer_compile_with_limit is a copy of wasmer_compile
 #[cfg(not(feature = "metering"))]
@@ -106,9 +99,7 @@ pub unsafe extern "C" fn wasmer_compile_with_limit(
 #[allow(clippy::cast_ptr_alignment)]
 #[no_mangle]
 #[cfg(not(feature = "metering"))]
-pub unsafe extern "C" fn wasmer_instance_get_points_used(
-    _: *mut wasmer_instance_t,
-) ->  u64 {
+pub unsafe extern "C" fn wasmer_instance_get_points_used(_: *mut wasmer_instance_t) ->  u64 {
     0
 }
 
@@ -116,7 +107,4 @@ pub unsafe extern "C" fn wasmer_instance_get_points_used(
 #[allow(clippy::cast_ptr_alignment)]
 #[no_mangle]
 #[cfg(not(feature = "metering"))]
-pub unsafe extern "C" fn wasmer_instance_set_points_used(
-    _: *mut wasmer_instance_t,
-    _: u64,
-) { }
+pub unsafe extern "C" fn wasmer_instance_set_points_used(_: *mut wasmer_instance_t, _: u64, ) {}
