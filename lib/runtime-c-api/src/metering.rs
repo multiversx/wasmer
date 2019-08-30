@@ -51,7 +51,7 @@ fn get_metered_compiler(limit: u64) -> impl Compiler {
 #[allow(clippy::cast_ptr_alignment)]
 #[no_mangle]
 #[cfg(feature = "metering")]
-pub unsafe extern "C" fn wasmer_instance_get_points_used(instance: *mut wasmer_instance_t) ->  u64 {
+pub unsafe extern "C" fn wasmer_instance_get_points_used(instance: *mut wasmer_instance_t) -> u64 {
     use wasmer_middleware_common::metering;
     let instance = &*(instance as *const wasmer_runtime::Instance);
     let points = metering::get_points_used(instance);
@@ -100,7 +100,7 @@ pub unsafe extern "C" fn wasmer_compile_with_limit(
 #[allow(clippy::cast_ptr_alignment)]
 #[no_mangle]
 #[cfg(not(feature = "metering"))]
-pub unsafe extern "C" fn wasmer_instance_get_points_used(_: *mut wasmer_instance_t) ->  u64 {
+pub unsafe extern "C" fn wasmer_instance_get_points_used(_: *mut wasmer_instance_t) -> u64 {
     0
 }
 
@@ -108,4 +108,4 @@ pub unsafe extern "C" fn wasmer_instance_get_points_used(_: *mut wasmer_instance
 #[allow(clippy::cast_ptr_alignment)]
 #[no_mangle]
 #[cfg(not(feature = "metering"))]
-pub unsafe extern "C" fn wasmer_instance_set_points_used(_: *mut wasmer_instance_t, _: u64, ) {}
+pub unsafe extern "C" fn wasmer_instance_set_points_used(_: *mut wasmer_instance_t, _: u64) {}
