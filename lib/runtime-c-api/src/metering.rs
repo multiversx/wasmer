@@ -6,12 +6,8 @@ use crate::{
 };
 use std::{slice};
 
-
 #[cfg(feature = "metering")]
-use wasmer_middleware_common::metering;
 use wasmer_runtime_core::backend::{Compiler};
-use wasmer_runtime_core::{compile_with};
-//use wasmer_runtime::{Instance};
 
 /// Creates a new Module with gas limit from the given wasm bytes.
 ///
@@ -29,7 +25,7 @@ pub unsafe extern "C" fn wasmer_compile_with_limit(
     gas_limit: u32, // TODO: allow more than 4 billion?
 ) -> wasmer_result_t {
     let bytes: &[u8] = slice::from_raw_parts_mut(wasm_bytes, wasm_bytes_len as usize);
-    let result = compile_with(bytes, &get_metered_compiler(gas_limit as u64));
+    let result = wasmer_runtime_core::compile_with(bytes, &get_metered_compiler(gas_limit as u64));
     let new_module = match result {
         Ok(instance) => instance,
         Err(error) => {
@@ -43,6 +39,7 @@ pub unsafe extern "C" fn wasmer_compile_with_limit(
 
 #[cfg(feature = "metering")]
 fn get_metered_compiler(limit: u64) -> impl Compiler {
+    use wasmer_middleware_common::metering;
     use wasmer_runtime_core::codegen::{MiddlewareChain, StreamingCompiler};
     use wasmer_singlepass_backend::ModuleCodeGenerator as SinglePassMCG;
     let c: StreamingCompiler<SinglePassMCG, _, _, _, _> = StreamingCompiler::new(move || {
@@ -58,13 +55,12 @@ fn get_metered_compiler(limit: u64) -> impl Compiler {
 #[no_mangle]
 #[cfg(feature = "metering")]
 pub unsafe extern "C" fn wasmer_instance_get_points_used(
-    _: *mut wasmer_instance_t,
-) ->  u32 { // TODO: return u64
-    0
-    // TODO
-//    let instance_ref = &*(instance as *const Instance);
-//    let points = metering::get_points_used(instance);
-//    points as u32
+    instance: *mut wasmer_instance_t,
+) ->  u64 {
+    use wasmer_middleware_common::metering;
+    let instance = &*(instance as *const wasmer_runtime::Instance);
+    let points = metering::get_points_used(instance);
+    points
 }
 
 // sets gas used
@@ -72,12 +68,12 @@ pub unsafe extern "C" fn wasmer_instance_get_points_used(
 #[no_mangle]
 #[cfg(feature = "metering")]
 pub unsafe extern "C" fn wasmer_instance_set_points_used(
-    _: *mut wasmer_instance_t,
-    _: u32,
+    instance: *mut wasmer_instance_t,
+    new_gas: u64,
 ) {
-    // TODO
-//    let instance_ref = &*(instance as *const Instance);
-//    metering::set_points_used(instance, new_gas as u64)
+    use wasmer_middleware_common::metering;
+    let instance = &mut *(instance as *mut wasmer_runtime::Instance);
+    metering::set_points_used(instance, new_gas)
 }
 
 
@@ -94,7 +90,7 @@ pub unsafe extern "C" fn wasmer_compile_with_limit(
     _: u32, // TODO: allow more than 4 billion?
 ) -> wasmer_result_t {
     let bytes: &[u8] = slice::from_raw_parts_mut(wasm_bytes, wasm_bytes_len as usize);
-    let result = compile(bytes);
+    let result = wasmer_runtime::compile(bytes);
     let new_module = match result {
         Ok(instance) => instance,
         Err(error) => {
@@ -112,7 +108,7 @@ pub unsafe extern "C" fn wasmer_compile_with_limit(
 #[cfg(not(feature = "metering"))]
 pub unsafe extern "C" fn wasmer_instance_get_points_used(
     _: *mut wasmer_instance_t,
-) ->  u32 {
+) ->  u64 {
     0
 }
 
@@ -122,5 +118,5 @@ pub unsafe extern "C" fn wasmer_instance_get_points_used(
 #[cfg(not(feature = "metering"))]
 pub unsafe extern "C" fn wasmer_instance_set_points_used(
     _: *mut wasmer_instance_t,
-    _: u32,
+    _: u64,
 ) { }
