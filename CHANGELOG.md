@@ -6,6 +6,8 @@ Blocks of changes will separated by version increments.
 
 ## **[Unreleased]**
 
+- [#783](https://github.com/wasmerio/wasmer/pull/783) Remove memory_base and memory_bound from InternalCtx.
+
 ## 0.7.0 - 2019-09-12
 
 Special thanks to @YaronWittenstein @penberg for their contributions.
