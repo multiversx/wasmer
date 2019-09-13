@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::ops::Bound::{Included, Unbounded};
 
+#[cfg(all(unix, target_arch = "x86_64"))]
 use crate::units::Bytes;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
