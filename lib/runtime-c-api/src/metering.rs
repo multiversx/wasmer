@@ -1,6 +1,8 @@
 use crate::{
-    error::update_last_error, instance::wasmer_instance_t, module::wasmer_module_t, wasmer_result_t,
+    error::{update_last_error, CApiError}, instance::wasmer_instance_t, module::wasmer_module_t, wasmer_result_t,
 };
+
+
 use std::slice;
 
 #[cfg(feature = "metering")]
@@ -21,12 +23,27 @@ pub unsafe extern "C" fn wasmer_compile_with_limit(
     wasm_bytes_len: u32,
     gas_limit: u64,
 ) -> wasmer_result_t {
+    if module.is_null() {
+        update_last_error(CApiError {
+            msg: "module is null".to_string(),
+        });
+        return wasmer_result_t::WASMER_ERROR;
+    }
+    if wasm_bytes.is_null() {
+        update_last_error(CApiError {
+            msg: "wasm bytes is null".to_string(),
+        });
+        return wasmer_result_t::WASMER_ERROR;
+    }
+
     let bytes: &[u8] = slice::from_raw_parts_mut(wasm_bytes, wasm_bytes_len as usize);
     let result = wasmer_runtime_core::compile_with(bytes, &get_metered_compiler(gas_limit));
     let new_module = match result {
         Ok(instance) => instance,
-        Err(error) => {
-            update_last_error(error);
+        Err(_) => {
+            update_last_error(CApiError {
+                msg: "compile error".to_string(),
+            });
             return wasmer_result_t::WASMER_ERROR;
         }
     };
@@ -61,6 +78,9 @@ fn get_metered_compiler(limit: u64) -> impl Compiler {
 #[no_mangle]
 #[cfg(feature = "metering")]
 pub unsafe extern "C" fn wasmer_instance_get_points_used(instance: *mut wasmer_instance_t) -> u64 {
+    if instance.is_null() {
+        return 0;
+    }
     use wasmer_middleware_common::metering;
     let instance = &*(instance as *const wasmer_runtime::Instance);
     let points = metering::get_points_used(instance);
@@ -75,6 +95,9 @@ pub unsafe extern "C" fn wasmer_instance_set_points_used(
     instance: *mut wasmer_instance_t,
     new_gas: u64,
 ) {
+    if instance.is_null() {
+        return;
+    }
     use wasmer_middleware_common::metering;
     let instance = &mut *(instance as *mut wasmer_runtime::Instance);
     metering::set_points_used(instance, new_gas)
@@ -91,6 +114,19 @@ pub unsafe extern "C" fn wasmer_compile_with_limit(
     wasm_bytes_len: u32,
     _: u64,
 ) -> wasmer_result_t {
+    if module.is_null() {
+        update_last_error(CApiError {
+            msg: "module is null".to_string(),
+        });
+        return wasmer_result_t::WASMER_ERROR;
+    }
+    if wasm_bytes.is_null() {
+        update_last_error(CApiError {
+            msg: "wasm bytes is null".to_string(),
+        });
+        return wasmer_result_t::WASMER_ERROR;
+    }
+
     let bytes: &[u8] = slice::from_raw_parts_mut(wasm_bytes, wasm_bytes_len as usize);
     // TODO: this implicitly uses default_compiler() is that proper? maybe we override default_compiler
     let result = wasmer_runtime::compile(bytes);
