@@ -52,7 +52,7 @@ cranelift-backend = ["wasmer-runtime/cranelift", "wasmer-runtime/default-backend
 # or adding default-features=false to the toml dependencies
 llvm-backend = ["wasmer-runtime/llvm", "wasmer-runtime/default-backend-llvm", "wasmer-llvm-backend"]
 singlepass-backend = ["wasmer-runtime/singlepass", "wasmer-runtime/default-backend-singlepass", "wasmer-singlepass-backend"]
-metering = ["wasmer-middleware-common", "singlepass-backend"]
+metering = ["wasmer-middleware-common", "llvm-backend"]
 
 [build-dependencies]
 cbindgen = "0.9.1"
