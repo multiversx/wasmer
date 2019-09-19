@@ -17,7 +17,7 @@ use wasmer_runtime_core::backend::Compiler;
 #[allow(clippy::cast_ptr_alignment)]
 #[cfg(feature = "metering")]
 #[no_mangle]
-pub unsafe extern "C" fn wasmer_compile_with_limit(
+pub unsafe extern "C" fn wasmer_compile_with_gas_metering(
     module: *mut *mut wasmer_module_t,
     wasm_bytes: *mut u8,
     wasm_bytes_len: u32,
@@ -105,10 +105,10 @@ pub unsafe extern "C" fn wasmer_instance_set_points_used(
 
 /*** placeholder implementation if metering feature off ***/
 
-// Without metering, wasmer_compile_with_limit is a copy of wasmer_compile
+// Without metering, wasmer_compile_with_gas_metering is a copy of wasmer_compile
 #[cfg(not(feature = "metering"))]
 #[no_mangle]
-pub unsafe extern "C" fn wasmer_compile_with_limit(
+pub unsafe extern "C" fn wasmer_compile_with_gas_metering(
     module: *mut *mut wasmer_module_t,
     wasm_bytes: *mut u8,
     wasm_bytes_len: u32,
