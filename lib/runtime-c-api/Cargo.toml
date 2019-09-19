@@ -34,14 +34,23 @@ path = "../singlepass-backend"
 version = "0.6.0"
 optional = true
 
+[dependencies.wasmer-llvm-backend]
+path = "../llvm-backend"
+version = "0.6.0"
+optional = true
+
+[dependencies.wasmer-clif-backend]
+path = "../clif-backend"
+version = "0.6.0"
+optional = true
 
 [features]
 default = ["cranelift-backend"]
 debug = ["wasmer-runtime/debug"]
-cranelift-backend = ["wasmer-runtime/cranelift", "wasmer-runtime/default-backend-cranelift"]
+cranelift-backend = ["wasmer-runtime/cranelift", "wasmer-runtime/default-backend-cranelift", "wasmer-clif-backend"]
 # to enable any of the below, you must disable the default cranelift backend with --no-default--features flag
 # or adding default-features=false to the toml dependencies
-llvm-backend = ["wasmer-runtime/llvm", "wasmer-runtime/default-backend-llvm"]
+llvm-backend = ["wasmer-runtime/llvm", "wasmer-runtime/default-backend-llvm", "wasmer-llvm-backend"]
 singlepass-backend = ["wasmer-runtime/singlepass", "wasmer-runtime/default-backend-singlepass", "wasmer-singlepass-backend"]
 metering = ["wasmer-middleware-common", "singlepass-backend"]
 

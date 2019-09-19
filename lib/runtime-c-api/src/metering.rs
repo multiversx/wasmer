@@ -38,8 +38,17 @@ pub unsafe extern "C" fn wasmer_compile_with_limit(
 fn get_metered_compiler(limit: u64) -> impl Compiler {
     use wasmer_middleware_common::metering;
     use wasmer_runtime_core::codegen::{MiddlewareChain, StreamingCompiler};
-    use wasmer_singlepass_backend::ModuleCodeGenerator as SinglePassMCG;
-    let c: StreamingCompiler<SinglePassMCG, _, _, _, _> = StreamingCompiler::new(move || {
+
+    #[cfg(feature = "llvm-backend")]
+    use wasmer_llvm_backend::ModuleCodeGenerator as MeteredMCG;
+
+    #[cfg(feature = "singlepass-backend")]
+    use wasmer_singlepass_backend::ModuleCodeGenerator as MeteredMCG;
+
+    #[cfg(feature = "cranelift-backend")]
+    use wasmer_clif_backend::ModuleCodeGenerator as MeteredMCG;
+
+    let c: StreamingCompiler<MeteredMCG, _, _, _, _> = StreamingCompiler::new(move || {
         let mut chain = MiddlewareChain::new();
         chain.push(metering::Metering::new(limit));
         chain
