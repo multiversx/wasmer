@@ -184,7 +184,9 @@ wasmer_result_t wasmer_compile(wasmer_module_t **module,
 
 /**
  * Creates a new Module with gas limit from the given wasm bytes.
+ *
  * Returns `wasmer_result_t::WASMER_OK` upon success.
+ *
  * Returns `wasmer_result_t::WASMER_ERROR` upon failure. Use `wasmer_last_error_length`
  * and `wasmer_last_error_message` to get an error message.
  */
