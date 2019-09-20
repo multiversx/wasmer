@@ -1,7 +1,9 @@
 use crate::{
-    error::{update_last_error, CApiError}, instance::wasmer_instance_t, module::wasmer_module_t, wasmer_result_t,
+    error::{update_last_error, CApiError},
+    instance::wasmer_instance_t,
+    module::wasmer_module_t,
+    wasmer_result_t,
 };
-
 
 use std::slice;
 
