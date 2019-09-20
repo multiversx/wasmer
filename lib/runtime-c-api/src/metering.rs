@@ -63,7 +63,7 @@ fn get_metered_compiler(limit: u64) -> impl Compiler {
     use wasmer_singlepass_backend::ModuleCodeGenerator as MeteredMCG;
 
     #[cfg(feature = "cranelift-backend")]
-    use wasmer_clif_backend::ModuleCodeGenerator as MeteredMCG;
+    use wasmer_clif_backend::CraneliftModuleCodeGenerator as MeteredMCG;
 
     let c: StreamingCompiler<MeteredMCG, _, _, _, _> = StreamingCompiler::new(move || {
         let mut chain = MiddlewareChain::new();
