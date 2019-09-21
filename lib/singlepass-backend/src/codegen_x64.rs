@@ -1561,10 +1561,18 @@ impl X64FunctionCode {
         if check_alignment && align != 1 {
             let tmp_aligncheck = m.acquire_temp_gpr().unwrap();
             //let tmp_mask = m.acquire_temp_gpr().unwrap();
-            a.emit_mov(Size::S32, Location::GPR(tmp_addr), Location::GPR(tmp_aligncheck));
+            a.emit_mov(
+                Size::S32,
+                Location::GPR(tmp_addr),
+                Location::GPR(tmp_aligncheck),
+            );
             //a.emit_mov(Size::S64, Location::Imm64(align - 1), Location::GPR(tmp_mask));
             //a.emit_and(Size::S64, Location::GPR(tmp_mask), Location::GPR(tmp_aligncheck));
-            a.emit_and(Size::S64, Location::Imm32(align - 1), Location::GPR(tmp_aligncheck));
+            a.emit_and(
+                Size::S64,
+                Location::Imm32(align - 1),
+                Location::GPR(tmp_aligncheck),
+            );
             a.emit_conditional_trap(Condition::NotEqual);
             //m.release_temp_gpr(tmp_mask);
             m.release_temp_gpr(tmp_aligncheck);
@@ -5452,7 +5460,8 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                 );
             }
             Operator::I32AtomicRmwAdd { ref memarg } => {
-                let loc = get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
+                let loc =
+                    get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
                 let target =
                     get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
                 let ret = self.machine.acquire_locations(
@@ -5463,10 +5472,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                 self.value_stack.push(ret);
 
                 let value = self.machine.acquire_temp_gpr().unwrap();
-                a.emit_mov(
-                    Size::S32,
-                    loc,
-                    Location::GPR(value));
+                a.emit_mov(Size::S32, loc, Location::GPR(value));
                 Self::emit_memory_op(
                     module_info,
                     &self.config,
@@ -5478,16 +5484,14 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     4,
                     |a, _m, addr| {
                         a.emit_lock_xadd(Size::S32, Location::GPR(value), Location::Memory(addr, 0))
-                    }
+                    },
                 );
-                a.emit_mov(
-                    Size::S32,
-                    Location::GPR(value),
-                    ret);
+                a.emit_mov(Size::S32, Location::GPR(value), ret);
                 self.machine.release_temp_gpr(value);
             }
             Operator::I32AtomicRmw8UAdd { ref memarg } => {
-                let loc = get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
+                let loc =
+                    get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
                 let target =
                     get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
                 let ret = self.machine.acquire_locations(
@@ -5498,11 +5502,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                 self.value_stack.push(ret);
 
                 let value = self.machine.acquire_temp_gpr().unwrap();
-                a.emit_movzx(
-                    Size::S8,
-                    loc,
-                    Size::S32,
-                    Location::GPR(value));
+                a.emit_movzx(Size::S8, loc, Size::S32, Location::GPR(value));
                 Self::emit_memory_op(
                     module_info,
                     &self.config,
@@ -5514,16 +5514,14 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     4,
                     |a, _m, addr| {
                         a.emit_lock_xadd(Size::S8, Location::GPR(value), Location::Memory(addr, 0))
-                    }
+                    },
                 );
-                a.emit_mov(
-                    Size::S32,
-                    Location::GPR(value),
-                    ret);
+                a.emit_mov(Size::S32, Location::GPR(value), ret);
                 self.machine.release_temp_gpr(value);
             }
             Operator::I32AtomicRmw16UAdd { ref memarg } => {
-                let loc = get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
+                let loc =
+                    get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
                 let target =
                     get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
                 let ret = self.machine.acquire_locations(
@@ -5534,11 +5532,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                 self.value_stack.push(ret);
 
                 let value = self.machine.acquire_temp_gpr().unwrap();
-                a.emit_movzx(
-                    Size::S16,
-                    loc,
-                    Size::S32,
-                    Location::GPR(value));
+                a.emit_movzx(Size::S16, loc, Size::S32, Location::GPR(value));
                 Self::emit_memory_op(
                     module_info,
                     &self.config,
@@ -5550,16 +5544,14 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     4,
                     |a, _m, addr| {
                         a.emit_lock_xadd(Size::S16, Location::GPR(value), Location::Memory(addr, 0))
-                    }
+                    },
                 );
-                a.emit_mov(
-                    Size::S32,
-                    Location::GPR(value),
-                    ret);
+                a.emit_mov(Size::S32, Location::GPR(value), ret);
                 self.machine.release_temp_gpr(value);
             }
             Operator::I32AtomicRmwSub { ref memarg } => {
-                let loc = get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
+                let loc =
+                    get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
                 let target =
                     get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
                 let ret = self.machine.acquire_locations(
@@ -5570,10 +5562,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                 self.value_stack.push(ret);
 
                 let value = self.machine.acquire_temp_gpr().unwrap();
-                a.emit_mov(
-                    Size::S32,
-                    loc,
-                    Location::GPR(value));
+                a.emit_mov(Size::S32, loc, Location::GPR(value));
                 a.emit_neg(Size::S32, Location::GPR(value));
                 Self::emit_memory_op(
                     module_info,
@@ -5586,16 +5575,14 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     4,
                     |a, _m, addr| {
                         a.emit_lock_xadd(Size::S32, Location::GPR(value), Location::Memory(addr, 0))
-                    }
+                    },
                 );
-                a.emit_mov(
-                    Size::S32,
-                    Location::GPR(value),
-                    ret);
+                a.emit_mov(Size::S32, Location::GPR(value), ret);
                 self.machine.release_temp_gpr(value);
             }
             Operator::I32AtomicRmw8USub { ref memarg } => {
-                let loc = get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
+                let loc =
+                    get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
                 let target =
                     get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
                 let ret = self.machine.acquire_locations(
@@ -5606,11 +5593,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                 self.value_stack.push(ret);
 
                 let value = self.machine.acquire_temp_gpr().unwrap();
-                a.emit_movzx(
-                    Size::S8,
-                    loc,
-                    Size::S32,
-                    Location::GPR(value));
+                a.emit_movzx(Size::S8, loc, Size::S32, Location::GPR(value));
                 a.emit_neg(Size::S32, Location::GPR(value));
                 Self::emit_memory_op(
                     module_info,
@@ -5623,16 +5606,14 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     4,
                     |a, _m, addr| {
                         a.emit_lock_xadd(Size::S8, Location::GPR(value), Location::Memory(addr, 0))
-                    }
+                    },
                 );
-                a.emit_mov(
-                    Size::S32,
-                    Location::GPR(value),
-                    ret);
+                a.emit_mov(Size::S32, Location::GPR(value), ret);
                 self.machine.release_temp_gpr(value);
             }
             Operator::I32AtomicRmw16USub { ref memarg } => {
-                let loc = get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
+                let loc =
+                    get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
                 let target =
                     get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
                 let ret = self.machine.acquire_locations(
@@ -5643,11 +5624,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                 self.value_stack.push(ret);
 
                 let value = self.machine.acquire_temp_gpr().unwrap();
-                a.emit_movzx(
-                    Size::S16,
-                    loc,
-                    Size::S32,
-                    Location::GPR(value));
+                a.emit_movzx(Size::S16, loc, Size::S32, Location::GPR(value));
                 a.emit_neg(Size::S16, Location::GPR(value));
                 Self::emit_memory_op(
                     module_info,
@@ -5660,12 +5637,66 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     4,
                     |a, _m, addr| {
                         a.emit_lock_xadd(Size::S16, Location::GPR(value), Location::Memory(addr, 0))
-                    }
+                    },
                 );
-                a.emit_mov(
-                    Size::S32,
-                    Location::GPR(value),
-                    ret);
+                a.emit_mov(Size::S32, Location::GPR(value), ret);
+                self.machine.release_temp_gpr(value);
+            }
+            Operator::I32AtomicRmwAnd { ref memarg } => {
+                let loc =
+                    get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
+                let target =
+                    get_location_released(a, &mut self.machine, self.value_stack.pop().unwrap());
+                let ret = self.machine.acquire_locations(
+                    a,
+                    &[(WpType::I32, MachineValue::WasmStack(self.value_stack.len()))],
+                    false,
+                )[0];
+                self.value_stack.push(ret);
+
+                let retry = a.get_label();
+
+                let value = self.machine.acquire_temp_gpr().unwrap();
+                let compare = GPR::RAX;
+
+                a.emit_label(retry);
+
+                a.emit_mov(Size::S32, loc, Location::GPR(value));
+                Self::emit_memory_op(
+                    module_info,
+                    &self.config,
+                    a,
+                    &mut self.machine,
+                    target,
+                    memarg,
+                    true,
+                    4,
+                    |a, _m, addr| {
+                        a.emit_mov(Size::S32, Location::Memory(addr, 0), Location::GPR(compare))
+                    },
+                );
+                a.emit_and(Size::S32, Location::GPR(compare), Location::GPR(value));
+                Self::emit_memory_op(
+                    module_info,
+                    &self.config,
+                    a,
+                    &mut self.machine,
+                    target,
+                    memarg,
+                    true,
+                    4,
+                    |a, _m, addr| {
+                        a.emit_lock_cmpxchg(
+                            Size::S32,
+                            Location::GPR(value),
+                            Location::Memory(addr, 0),
+                        )
+                    },
+                );
+
+                a.emit_jmp(Condition::NotEqual, retry);
+
+                a.emit_mov(Size::S32, Location::GPR(value), ret);
                 self.machine.release_temp_gpr(value);
             }
             _ => {
