@@ -59,3 +59,5 @@ pub type CraneliftCompiler = SimpleStreamingCompilerGen<
     signal::Caller,
     code::CodegenError,
 >;
+
+pub use code::CraneliftModuleCodeGenerator;

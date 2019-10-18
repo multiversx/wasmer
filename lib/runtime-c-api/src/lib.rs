@@ -99,6 +99,7 @@ pub mod global;
 pub mod import;
 pub mod instance;
 pub mod memory;
+pub mod metering;
 pub mod module;
 pub mod table;
 #[cfg(all(unix, target_arch = "x86_64"))]
