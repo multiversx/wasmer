@@ -26,22 +26,22 @@ version = "0.8.0"
 
 [dependencies.wasmer-middleware-common]
 path = "../middleware-common"
-version = "0.7.0"
+version = "0.8.0"
 optional = true
 
 [dependencies.wasmer-singlepass-backend]
 path = "../singlepass-backend"
-version = "0.7.0"
+version = "0.8.0"
 optional = true
 
 [dependencies.wasmer-llvm-backend]
 path = "../llvm-backend"
-version = "0.7.0"
+version = "0.8.0"
 optional = true
 
 [dependencies.wasmer-clif-backend]
 path = "../clif-backend"
-version = "0.7.0"
+version = "0.8.0"
 optional = true
 
 [features]
