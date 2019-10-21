@@ -221,7 +221,7 @@ jobs:
         condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
         inputs:
           gitHubConnection: wasmer
-          repositoryName: wasmerio/wasmer
+          repositoryName: ElrondNetwork/wasmer
           tag: dev
           assets: $(Build.ArtifactStagingDirectory)
 

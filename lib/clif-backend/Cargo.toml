@@ -4,7 +4,7 @@ version = "0.8.0"
 description = "Wasmer runtime Cranelift compiler backend"
 license = "MIT"
 authors = ["The Wasmer Engineering Team <engineering@wasmer.io>"]
-repository = "https://github.com/wasmerio/wasmer"
+repository = "https://github.com/ElrondNetwork/wasmer"
 edition = "2018"
 readme = "README.md"
 

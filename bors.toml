@@ -1,5 +1,5 @@
 status = [
-    "wasmerio.wasmer"
+    "ElrondNetwork.wasmer"
 ]
 required_approvals = 1
 timeout_sec = 7200

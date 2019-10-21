@@ -3,7 +3,7 @@ name = "plugin-for-example"
 version = "0.1.0"
 description = "A plugin for our example system"
 readme = "README.md"
-repository = "https://github.com/wasmerio/wasmer/examples/plugin-for-example"
+repository = "https://github.com/ElrondNetwork/wasmer/examples/plugin-for-example"
 license = "MIT"
 
 [[module]]

@@ -1,7 +1,7 @@
 [package]
 name = "wasmer-middleware-common"
 version = "0.8.0"
-repository = "https://github.com/wasmerio/wasmer"
+repository = "https://github.com/ElrondNetwork/wasmer"
 description = "Wasmer runtime common middlewares"
 license = "MIT"
 authors = ["The Wasmer Engineering Team <engineering@wasmer.io>"]

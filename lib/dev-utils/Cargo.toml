@@ -5,7 +5,7 @@ description = "Wasmer runtime core library"
 license = "MIT"
 authors = ["The Wasmer Engineering Team <engineering@wasmer.io>"]
 edition = "2018"
-repository = "https://github.com/wasmerio/wasmer"
+repository = "https://github.com/ElrondNetwork/wasmer"
 publish = false
 
 [dependencies]
