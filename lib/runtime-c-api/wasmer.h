@@ -542,6 +542,13 @@ wasmer_result_t wasmer_instantiate(wasmer_instance_t **instance,
                                    wasmer_import_t *imports,
                                    int imports_len);
 
+wasmer_result_t wasmer_instantiate_with_metering(wasmer_instance_t **instance,
+                                                 uint8_t *wasm_bytes,
+                                                 uint32_t wasm_bytes_len,
+                                                 wasmer_import_t *imports,
+                                                 int imports_len,
+                                                 uint64_t gas_limit);
+
 /**
  * Gets the length in bytes of the last error.
  * This can be used to dynamically allocate a buffer with the correct number of

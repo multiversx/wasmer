@@ -1,14 +1,116 @@
 use crate::{
+    export::{wasmer_import_export_kind},
+    import::{wasmer_import_t},
     error::{update_last_error, CApiError},
     instance::wasmer_instance_t,
     module::wasmer_module_t,
     wasmer_result_t,
 };
-
-use std::slice;
+use libc::{c_int};
+use std::{collections::HashMap, slice};
+use wasmer_runtime::{Global, Memory, Table};
+use wasmer_runtime_core::{
+    export::Export,
+    import::{ImportObject, Namespace},
+};
 
 #[cfg(feature = "metering")]
 use wasmer_runtime_core::backend::Compiler;
+
+#[allow(clippy::cast_ptr_alignment)]
+#[cfg(feature = "metering")]
+#[no_mangle]
+pub unsafe extern "C" fn wasmer_instantiate_with_metering(
+    instance: *mut *mut wasmer_instance_t,
+    wasm_bytes: *mut u8,
+    wasm_bytes_len: u32,
+    imports: *mut wasmer_import_t,
+    imports_len: c_int,
+    gas_limit: u64,
+) -> wasmer_result_t {
+    if wasm_bytes.is_null() {
+        update_last_error(CApiError {
+            msg: "wasm bytes ptr is null".to_string(),
+        });
+        return wasmer_result_t::WASMER_ERROR;
+    }
+    let imports: &[wasmer_import_t] = slice::from_raw_parts(imports, imports_len as usize);
+    let mut import_object = ImportObject::new();
+    let mut namespaces = HashMap::new();
+    for import in imports {
+        let module_name = slice::from_raw_parts(
+            import.module_name.bytes,
+            import.module_name.bytes_len as usize,
+        );
+        let module_name = if let Ok(s) = std::str::from_utf8(module_name) {
+            s
+        } else {
+            update_last_error(CApiError {
+                msg: "error converting module name to string".to_string(),
+            });
+            return wasmer_result_t::WASMER_ERROR;
+        };
+        let import_name = slice::from_raw_parts(
+            import.import_name.bytes,
+            import.import_name.bytes_len as usize,
+        );
+        let import_name = if let Ok(s) = std::str::from_utf8(import_name) {
+            s
+        } else {
+            update_last_error(CApiError {
+                msg: "error converting import_name to string".to_string(),
+            });
+            return wasmer_result_t::WASMER_ERROR;
+        };
+
+        let namespace = namespaces.entry(module_name).or_insert_with(Namespace::new);
+
+        let export = match import.tag {
+            wasmer_import_export_kind::WASM_MEMORY => {
+                let mem = import.value.memory as *mut Memory;
+                Export::Memory((&*mem).clone())
+            }
+            wasmer_import_export_kind::WASM_FUNCTION => {
+                let func_export = import.value.func as *mut Export;
+                (&*func_export).clone()
+            }
+            wasmer_import_export_kind::WASM_GLOBAL => {
+                let global = import.value.global as *mut Global;
+                Export::Global((&*global).clone())
+            }
+            wasmer_import_export_kind::WASM_TABLE => {
+                let table = import.value.table as *mut Table;
+                Export::Table((&*table).clone())
+            }
+        };
+        namespace.insert(import_name, export);
+    }
+    for (module_name, namespace) in namespaces.into_iter() {
+        import_object.register(module_name, namespace);
+    }
+
+    let bytes: &[u8] = slice::from_raw_parts_mut(wasm_bytes, wasm_bytes_len as usize);
+    let result_compilation = wasmer_runtime_core::compile_with(bytes, &get_metered_compiler(gas_limit));
+    let new_module = match result_compilation {
+        Ok(module) => module,
+        Err(_) => {
+            update_last_error(CApiError {
+                msg: "compile error".to_string(),
+            });
+            return wasmer_result_t::WASMER_ERROR;
+        }
+    };
+    let result_instantiation = new_module.instantiate(&import_object);
+    let new_instance = match result_instantiation {
+        Ok(instance) => instance,
+        Err(error) => {
+            update_last_error(error);
+            return wasmer_result_t::WASMER_ERROR;
+        }
+    };
+    *instance = Box::into_raw(Box::new(new_instance)) as *mut wasmer_instance_t;
+    wasmer_result_t::WASMER_OK
+}
 
 /// Creates a new Module with gas limit from the given wasm bytes.
 ///
