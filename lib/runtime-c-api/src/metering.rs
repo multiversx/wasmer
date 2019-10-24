@@ -14,6 +14,9 @@ use wasmer_runtime_core::{
     import::{ImportObject, Namespace},
 };
 
+use std::ffi::CStr;
+use std::os::raw::c_char;
+
 #[cfg(feature = "metering")]
 use wasmer_runtime_core::backend::Compiler;
 
@@ -27,6 +30,7 @@ pub unsafe extern "C" fn wasmer_instantiate_with_metering(
     imports: *mut wasmer_import_t,
     imports_len: c_int,
     gas_limit: u64,
+    costs_table_name: *const c_char,
 ) -> wasmer_result_t {
     if wasm_bytes.is_null() {
         update_last_error(CApiError {
@@ -90,7 +94,8 @@ pub unsafe extern "C" fn wasmer_instantiate_with_metering(
     }
 
     let bytes: &[u8] = slice::from_raw_parts_mut(wasm_bytes, wasm_bytes_len as usize);
-    let result_compilation = wasmer_runtime_core::compile_with(bytes, &get_metered_compiler(gas_limit));
+    let costs_table_name_owned = CStr::from_ptr(costs_table_name).to_string_lossy().into_owned();
+    let result_compilation = wasmer_runtime_core::compile_with(bytes, &get_metered_compiler(gas_limit, &costs_table_name_owned));
     let new_module = match result_compilation {
         Ok(module) => module,
         Err(_) => {
@@ -141,7 +146,7 @@ pub unsafe extern "C" fn wasmer_compile_with_gas_metering(
     }
 
     let bytes: &[u8] = slice::from_raw_parts_mut(wasm_bytes, wasm_bytes_len as usize);
-    let result = wasmer_runtime_core::compile_with(bytes, &get_metered_compiler(gas_limit));
+    let result = wasmer_runtime_core::compile_with(bytes, &get_metered_compiler(gas_limit, "uniform_one"));
     let new_module = match result {
         Ok(instance) => instance,
         Err(_) => {
@@ -156,7 +161,7 @@ pub unsafe extern "C" fn wasmer_compile_with_gas_metering(
 }
 
 #[cfg(feature = "metering")]
-fn get_metered_compiler(limit: u64) -> impl Compiler {
+fn get_metered_compiler(limit: u64, costs_table_name: &str) -> impl Compiler {
     use wasmer_middleware_common::metering;
     use wasmer_runtime_core::codegen::{MiddlewareChain, StreamingCompiler};
 
@@ -169,9 +174,11 @@ fn get_metered_compiler(limit: u64) -> impl Compiler {
     #[cfg(feature = "cranelift-backend")]
     use wasmer_clif_backend::CraneliftModuleCodeGenerator as MeteredMCG;
 
+    let table_name = (*costs_table_name).to_string();
+
     let c: StreamingCompiler<MeteredMCG, _, _, _, _> = StreamingCompiler::new(move || {
         let mut chain = MiddlewareChain::new();
-        chain.push(metering::Metering::new(limit));
+        chain.push(metering::Metering::new(limit, &table_name));
         chain
     });
     c

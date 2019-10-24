@@ -547,7 +547,8 @@ wasmer_result_t wasmer_instantiate_with_metering(wasmer_instance_t **instance,
                                                  uint32_t wasm_bytes_len,
                                                  wasmer_import_t *imports,
                                                  int imports_len,
-                                                 uint64_t gas_limit);
+                                                 uint64_t gas_limit,
+                                                 const char *costs_table_name);
 
 /**
  * Gets the length in bytes of the last error.

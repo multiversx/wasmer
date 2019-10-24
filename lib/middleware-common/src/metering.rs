@@ -6,6 +6,8 @@ use wasmer_runtime_core::{
     Instance,
 };
 
+use crate::metering_costs::get_costs_table;
+
 static INTERNAL_FIELD: InternalField = InternalField::allocate();
 
 /// Metering is a compiler middleware that calculates the cost of WebAssembly instructions at compile
@@ -20,16 +22,19 @@ static INTERNAL_FIELD: InternalField = InternalField::allocate();
 /// Each compiler backend with Metering enabled should produce the same cost used at runtime for
 /// the same function calls so we can say that the metering is deterministic.
 ///
+
 pub struct Metering {
     limit: u64,
     current_block: u64,
+    costs_table: fn(&Operator) -> u64,
 }
 
 impl Metering {
-    pub fn new(limit: u64) -> Metering {
+    pub fn new(limit: u64, table_name: &str) -> Metering {
         Metering {
             limit,
             current_block: 0,
+            costs_table: get_costs_table(table_name),
         }
     }
 }
@@ -50,7 +55,7 @@ impl FunctionMiddleware for Metering {
                 self.current_block = 0;
             }
             Event::Wasm(&ref op) | Event::WasmOwned(ref op) => {
-                self.current_block += 1;
+                self.current_block += (self.costs_table)(op);
                 match *op {
                     Operator::Loop { .. }
                     | Operator::Block { .. }
