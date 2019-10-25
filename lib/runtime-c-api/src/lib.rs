@@ -99,6 +99,7 @@ pub mod global;
 pub mod import;
 pub mod instance;
 pub mod memory;
+#[cfg(feature = "metering")]
 pub mod metering;
 pub mod module;
 pub mod table;

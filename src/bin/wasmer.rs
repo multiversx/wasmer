@@ -21,6 +21,7 @@ use std::collections::HashMap;
 use structopt::StructOpt;
 
 use wasmer::*;
+#[cfg(feature = "backend-cranelift")]
 use wasmer_clif_backend::CraneliftCompiler;
 #[cfg(feature = "backend-llvm")]
 use wasmer_llvm_backend::{LLVMCompiler, LLVMOptions};
@@ -825,7 +826,12 @@ fn get_compiler_by_backend(backend: Backend) -> Option<Box<dyn Compiler>> {
         Backend::Singlepass => Box::new(SinglePassCompiler::new()),
         #[cfg(not(feature = "backend-singlepass"))]
         Backend::Singlepass => return None,
+
+        #[cfg(feature = "backend-cranelift")]
         Backend::Cranelift => Box::new(CraneliftCompiler::new()),
+        #[cfg(not(feature = "backend-cranelift"))]
+        Backend::Cranelift => return None,
+
         #[cfg(feature = "backend-llvm")]
         Backend::LLVM => Box::new(LLVMCompiler::new()),
         #[cfg(not(feature = "backend-llvm"))]

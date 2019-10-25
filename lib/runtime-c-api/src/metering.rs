@@ -20,6 +20,10 @@ use std::os::raw::c_char;
 #[cfg(feature = "metering")]
 use wasmer_runtime_core::backend::Compiler;
 
+#[cfg(not(feature = "cranelift-backend"))]
+use wasmer_middleware_common::metering;
+
+
 #[allow(clippy::cast_ptr_alignment)]
 #[cfg(feature = "metering")]
 #[no_mangle]
@@ -162,7 +166,6 @@ pub unsafe extern "C" fn wasmer_compile_with_gas_metering(
 
 #[cfg(feature = "metering")]
 fn get_metered_compiler(limit: u64, costs_table_name: &str) -> impl Compiler {
-    use wasmer_middleware_common::metering;
     use wasmer_runtime_core::codegen::{MiddlewareChain, StreamingCompiler};
 
     #[cfg(feature = "llvm-backend")]
@@ -192,7 +195,6 @@ pub unsafe extern "C" fn wasmer_instance_get_points_used(instance: *mut wasmer_i
     if instance.is_null() {
         return 0;
     }
-    use wasmer_middleware_common::metering;
     let instance = &*(instance as *const wasmer_runtime::Instance);
     let points = metering::get_points_used(instance);
     points
@@ -209,7 +211,6 @@ pub unsafe extern "C" fn wasmer_instance_set_points_used(
     if instance.is_null() {
         return;
     }
-    use wasmer_middleware_common::metering;
     let instance = &mut *(instance as *mut wasmer_runtime::Instance);
     metering::set_points_used(instance, new_gas)
 }
