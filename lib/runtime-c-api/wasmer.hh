@@ -6,6 +6,8 @@
 #include <cstdlib>
 #include <new>
 
+static const uintptr_t OPCODE_COUNT = 410;
+
 /// List of export/import kinds.
 enum class wasmer_import_export_kind : uint32_t {
   WASM_FUNCTION,
@@ -175,7 +177,8 @@ wasmer_result_t wasmer_compile(wasmer_module_t **module,
 wasmer_result_t wasmer_compile_with_gas_metering(wasmer_module_t **module,
                                                  uint8_t *wasm_bytes,
                                                  uint32_t wasm_bytes_len,
-                                                 uint64_t gas_limit);
+                                                 uint64_t gas_limit,
+                                                 const uint32_t *opcode_costs_pointer);
 
 /// Gets export descriptor kind
 wasmer_import_export_kind wasmer_export_descriptor_kind(wasmer_export_descriptor_t *export_);
@@ -436,7 +439,7 @@ wasmer_result_t wasmer_instantiate_with_metering(wasmer_instance_t **instance,
                                                  wasmer_import_t *imports,
                                                  int imports_len,
                                                  uint64_t gas_limit,
-                                                 const char *costs_table_name);
+                                                 const uint32_t *opcode_costs_pointer);
 
 /// Gets the length in bytes of the last error.
 /// This can be used to dynamically allocate a buffer with the correct number of
