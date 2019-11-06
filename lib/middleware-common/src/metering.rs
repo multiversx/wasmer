@@ -6,7 +6,7 @@ use wasmer_runtime_core::{
     Instance,
 };
 
-use crate::metering_costs::get_costs_table;
+use crate::metering_costs::{get_opcode_index};
 
 static INTERNAL_FIELD: InternalField = InternalField::allocate();
 
@@ -23,18 +23,18 @@ static INTERNAL_FIELD: InternalField = InternalField::allocate();
 /// the same function calls so we can say that the metering is deterministic.
 ///
 
-pub struct Metering {
+pub struct Metering<'a> {
     limit: u64,
     current_block: u64,
-    costs_table: fn(&Operator) -> u64,
+    opcode_costs: &'a [u32],
 }
 
-impl Metering {
-    pub fn new(limit: u64, table_name: &str) -> Metering {
+impl<'a> Metering<'a> {
+    pub fn new(limit: u64, opcode_costs: &'a [u32]) -> Metering<'a> {
         Metering {
             limit,
             current_block: 0,
-            costs_table: get_costs_table(table_name),
+            opcode_costs: opcode_costs,
         }
     }
 }
@@ -42,7 +42,7 @@ impl Metering {
 #[derive(Copy, Clone, Debug)]
 pub struct ExecutionLimitExceededError;
 
-impl FunctionMiddleware for Metering {
+impl<'q> FunctionMiddleware for Metering<'q> {
     type Error = String;
     fn feed_event<'a, 'b: 'a>(
         &mut self,
@@ -55,7 +55,8 @@ impl FunctionMiddleware for Metering {
                 self.current_block = 0;
             }
             Event::Wasm(&ref op) | Event::WasmOwned(ref op) => {
-                self.current_block += (self.costs_table)(op);
+                let opcode_index = get_opcode_index(op);
+                self.current_block += self.opcode_costs[opcode_index] as u64;
                 match *op {
                     Operator::Loop { .. }
                     | Operator::Block { .. }
