@@ -1,5 +1,4 @@
 use crate::{
-    export::{wasmer_import_export_kind},
     import::{wasmer_import_t},
     error::{update_last_error, CApiError},
     instance::wasmer_instance_t,
@@ -7,11 +6,10 @@ use crate::{
     wasmer_result_t,
 };
 use libc::{c_int};
-use std::{collections::HashMap, slice};
-use wasmer_runtime::{Global, Memory, Table};
-use wasmer_runtime_core::{
-    export::Export,
-    import::{ImportObject, Namespace},
+use std::{slice};
+use crate::import::{
+    wasmer_create_import_object_from_imports,
+    ImportError,
 };
 
 #[cfg(feature = "metering")]
@@ -42,60 +40,23 @@ pub unsafe extern "C" fn wasmer_instantiate_with_metering(
         });
         return wasmer_result_t::WASMER_ERROR;
     }
-    let imports: &[wasmer_import_t] = slice::from_raw_parts(imports, imports_len as usize);
-    let mut import_object = ImportObject::new();
-    let mut namespaces = HashMap::new();
-    for import in imports {
-        let module_name = slice::from_raw_parts(
-            import.module_name.bytes,
-            import.module_name.bytes_len as usize,
-        );
-        let module_name = if let Ok(s) = std::str::from_utf8(module_name) {
-            s
-        } else {
+
+    let imports_result = wasmer_create_import_object_from_imports(imports, imports_len);
+    let import_object = match imports_result {
+        Err(ImportError::ModuleNameError) => {
             update_last_error(CApiError {
                 msg: "error converting module name to string".to_string(),
             });
             return wasmer_result_t::WASMER_ERROR;
-        };
-        let import_name = slice::from_raw_parts(
-            import.import_name.bytes,
-            import.import_name.bytes_len as usize,
-        );
-        let import_name = if let Ok(s) = std::str::from_utf8(import_name) {
-            s
-        } else {
+        }
+        Err(ImportError::ImportNameError) => {
             update_last_error(CApiError {
                 msg: "error converting import_name to string".to_string(),
             });
             return wasmer_result_t::WASMER_ERROR;
-        };
-
-        let namespace = namespaces.entry(module_name).or_insert_with(Namespace::new);
-
-        let export = match import.tag {
-            wasmer_import_export_kind::WASM_MEMORY => {
-                let mem = import.value.memory as *mut Memory;
-                Export::Memory((&*mem).clone())
-            }
-            wasmer_import_export_kind::WASM_FUNCTION => {
-                let func_export = import.value.func as *mut Export;
-                (&*func_export).clone()
-            }
-            wasmer_import_export_kind::WASM_GLOBAL => {
-                let global = import.value.global as *mut Global;
-                Export::Global((&*global).clone())
-            }
-            wasmer_import_export_kind::WASM_TABLE => {
-                let table = import.value.table as *mut Table;
-                Export::Table((&*table).clone())
-            }
-        };
-        namespace.insert(import_name, export);
-    }
-    for (module_name, namespace) in namespaces.into_iter() {
-        import_object.register(module_name, namespace);
-    }
+        }
+        Ok(created_imports_object) => created_imports_object
+    };
 
     OPCODE_COSTS.copy_from_slice(slice::from_raw_parts(opcode_costs_pointer, OPCODE_COUNT));
 

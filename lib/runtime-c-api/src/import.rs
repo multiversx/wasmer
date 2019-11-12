@@ -8,15 +8,22 @@ use crate::{
     value::wasmer_value_tag,
     wasmer_byte_array, wasmer_result_t,
 };
-use libc::c_uint;
+use libc::{c_int, c_uint};
 use std::{ffi::c_void, ptr, slice, sync::Arc};
+use std::result::Result;
 use wasmer_runtime::{Global, Memory, Module, Table};
 use wasmer_runtime_core::{
     export::{Context, Export, FuncPointer},
-    import::ImportObject,
+    import::{ImportObject, Namespace},
     module::ImportName,
     types::{FuncSig, Type},
 };
+use std::{collections::HashMap};
+
+pub enum ImportError {
+    ModuleNameError,
+    ImportNameError,
+}
 
 #[repr(C)]
 pub struct wasmer_import_t {
@@ -49,6 +56,67 @@ pub unsafe extern "C" fn wasmer_import_object_new() -> *mut wasmer_import_object
     let import_object = Box::new(ImportObject::new());
 
     Box::into_raw(import_object) as *mut wasmer_import_object_t
+}
+
+/// Assembles an ImportObject from a list of imports received on the C API
+#[allow(clippy::cast_ptr_alignment)]
+#[no_mangle]
+pub unsafe fn wasmer_create_import_object_from_imports(
+    imports: *mut wasmer_import_t,
+    imports_len: c_int,
+) -> Result<ImportObject, ImportError> {
+    let imports: &[wasmer_import_t] = slice::from_raw_parts(imports, imports_len as usize);
+    let mut import_object = ImportObject::new();
+    let mut namespaces = HashMap::new();
+
+    for import in imports {
+        let module_name = slice::from_raw_parts(
+            import.module_name.bytes,
+            import.module_name.bytes_len as usize,
+        );
+        let module_name = if let Ok(s) = std::str::from_utf8(module_name) {
+            s
+        } else {
+            return Err(ImportError::ModuleNameError)
+        };
+        let import_name = slice::from_raw_parts(
+            import.import_name.bytes,
+            import.import_name.bytes_len as usize,
+        );
+        let import_name = if let Ok(s) = std::str::from_utf8(import_name) {
+            s
+        } else {
+            return Err(ImportError::ImportNameError)
+        };
+
+        let namespace = namespaces.entry(module_name).or_insert_with(Namespace::new);
+
+        let export = match import.tag {
+            wasmer_import_export_kind::WASM_MEMORY => {
+                let mem = import.value.memory as *mut Memory;
+                Export::Memory((&*mem).clone())
+            }
+            wasmer_import_export_kind::WASM_FUNCTION => {
+                let func_export = import.value.func as *mut Export;
+                (&*func_export).clone()
+            }
+            wasmer_import_export_kind::WASM_GLOBAL => {
+                let global = import.value.global as *mut Global;
+                Export::Global((&*global).clone())
+            }
+            wasmer_import_export_kind::WASM_TABLE => {
+                let table = import.value.table as *mut Table;
+                Export::Table((&*table).clone())
+            }
+        };
+        namespace.insert(import_name, export);
+    }
+
+    for (module_name, namespace) in namespaces.into_iter() {
+        import_object.register(module_name, namespace);
+    }
+    
+    Ok(import_object)
 }
 
 /// Extends an existing import object with new imports
