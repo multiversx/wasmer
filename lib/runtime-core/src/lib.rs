@@ -87,6 +87,8 @@ pub mod prelude {
     pub use crate::{func, imports};
 }
 
+pub use crate::import::{ImportObject, Namespace};
+
 /// Compile a [`Module`] using the provided compiler from
 /// WebAssembly binary code. This function is useful if it
 /// is necessary to a compile a module before it can be instantiated

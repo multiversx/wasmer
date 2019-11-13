@@ -58,6 +58,29 @@ pub unsafe extern "C" fn wasmer_import_object_new() -> *mut wasmer_import_object
     Box::into_raw(import_object) as *mut wasmer_import_object_t
 }
 
+#[allow(clippy::cast_ptr_alignment)]
+#[no_mangle]
+pub unsafe extern "C" fn wasmer_import_object_new_from_imports(
+    external_import_object: *mut *mut wasmer_import_object_t,
+    imports: *mut wasmer_import_t,
+    imports_len: c_int,
+) -> wasmer_result_t {
+    let imports_result = wasmer_create_import_object_from_imports(imports, imports_len);
+    let import_object = match imports_result {
+        Err(ImportError::ModuleNameError) => {
+            update_last_error(CApiError { msg: "error converting module name to string".to_string() });
+            return wasmer_result_t::WASMER_ERROR;
+        }
+        Err(ImportError::ImportNameError) => {
+            update_last_error(CApiError { msg: "error converting import_name to string".to_string() });
+            return wasmer_result_t::WASMER_ERROR;
+        }
+        Ok(created_imports_object) => created_imports_object
+    };
+    *external_import_object = Box::into_raw(Box::new(import_object)) as *mut wasmer_import_object_t;
+    return wasmer_result_t::WASMER_OK
+}
+
 /// Assembles an ImportObject from a list of imports received on the C API
 #[allow(clippy::cast_ptr_alignment)]
 #[no_mangle]

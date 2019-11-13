@@ -12,6 +12,8 @@ use crate::import::{
     ImportError,
 };
 
+use wasmer_runtime_core::import::ImportObject;
+
 #[cfg(feature = "metering")]
 use wasmer_runtime_core::backend::Compiler;
 
@@ -21,6 +23,8 @@ use wasmer_middleware_common::metering;
 pub const OPCODE_COUNT: usize = 410;
 static mut OPCODE_COSTS: [u32; OPCODE_COUNT] = [0; OPCODE_COUNT];
 
+#[repr(C)]
+pub struct wasmer_import_object_t;
 
 #[allow(clippy::cast_ptr_alignment)]
 #[cfg(feature = "metering")]
@@ -44,15 +48,11 @@ pub unsafe extern "C" fn wasmer_instantiate_with_metering(
     let imports_result = wasmer_create_import_object_from_imports(imports, imports_len);
     let import_object = match imports_result {
         Err(ImportError::ModuleNameError) => {
-            update_last_error(CApiError {
-                msg: "error converting module name to string".to_string(),
-            });
+            update_last_error(CApiError { msg: "error converting module name to string".to_string() });
             return wasmer_result_t::WASMER_ERROR;
         }
         Err(ImportError::ImportNameError) => {
-            update_last_error(CApiError {
-                msg: "error converting import_name to string".to_string(),
-            });
+            update_last_error(CApiError { msg: "error converting import_name to string".to_string() });
             return wasmer_result_t::WASMER_ERROR;
         }
         Ok(created_imports_object) => created_imports_object
@@ -66,9 +66,7 @@ pub unsafe extern "C" fn wasmer_instantiate_with_metering(
     let new_module = match result_compilation {
         Ok(module) => module,
         Err(_) => {
-            update_last_error(CApiError {
-                msg: "compile error".to_string(),
-            });
+            update_last_error(CApiError { msg: "compile error".to_string() });
             return wasmer_result_t::WASMER_ERROR;
         }
     };
@@ -83,6 +81,51 @@ pub unsafe extern "C" fn wasmer_instantiate_with_metering(
     *instance = Box::into_raw(Box::new(new_instance)) as *mut wasmer_instance_t;
     wasmer_result_t::WASMER_OK
 }
+
+#[allow(clippy::cast_ptr_alignment)]
+#[cfg(feature = "metering")]
+#[no_mangle]
+pub unsafe extern "C" fn wasmer_instantiate_with_metering_and_import_object(
+    instance: *mut *mut wasmer_instance_t,
+    wasm_bytes: *mut u8,
+    wasm_bytes_len: u32,
+    external_import_object: *mut wasmer_import_object_t,
+    gas_limit: u64,
+    opcode_costs_pointer: *mut u32,
+) -> wasmer_result_t {
+    if wasm_bytes.is_null() {
+        update_last_error(CApiError {
+            msg: "wasm bytes ptr is null".to_string(),
+        });
+        return wasmer_result_t::WASMER_ERROR;
+    }
+
+    OPCODE_COSTS.copy_from_slice(slice::from_raw_parts(opcode_costs_pointer, OPCODE_COUNT));
+
+    let bytes: &[u8] = slice::from_raw_parts_mut(wasm_bytes, wasm_bytes_len as usize);
+    let compiler = get_metered_compiler(gas_limit);
+    let result_compilation = wasmer_runtime_core::compile_with(bytes, &compiler);
+    let new_module = match result_compilation {
+        Ok(module) => module,
+        Err(_) => {
+            update_last_error(CApiError { msg: "compile error".to_string() });
+            return wasmer_result_t::WASMER_ERROR;
+        }
+    };
+
+    let import_object: &mut ImportObject = &mut *(external_import_object as *mut ImportObject);
+    let result_instantiation = new_module.instantiate(&import_object);
+    let new_instance = match result_instantiation {
+        Ok(instance) => instance,
+        Err(error) => {
+            update_last_error(error);
+            return wasmer_result_t::WASMER_ERROR;
+        }
+    };
+    *instance = Box::into_raw(Box::new(new_instance)) as *mut wasmer_instance_t;
+    wasmer_result_t::WASMER_OK
+}
+
 
 /// Creates a new Module with gas limit from the given wasm bytes.
 ///

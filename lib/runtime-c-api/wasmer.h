@@ -476,6 +476,10 @@ wasmer_result_t wasmer_import_object_extend(wasmer_import_object_t *import_objec
  */
 wasmer_import_object_t *wasmer_import_object_new(void);
 
+wasmer_result_t wasmer_import_object_new_from_imports(wasmer_import_object_t **external_import_object,
+                                                      wasmer_import_t *imports,
+                                                      int imports_len);
+
 /**
  * Calls an instances exported function by `name` with the provided parameters.
  * Results are set using the provided `results` pointer.
@@ -552,6 +556,13 @@ wasmer_result_t wasmer_instantiate_with_metering(wasmer_instance_t **instance,
                                                  int imports_len,
                                                  uint64_t gas_limit,
                                                  const uint32_t *opcode_costs_pointer);
+
+wasmer_result_t wasmer_instantiate_with_metering_and_import_object(wasmer_instance_t **instance,
+                                                                   uint8_t *wasm_bytes,
+                                                                   uint32_t wasm_bytes_len,
+                                                                   wasmer_import_object_t *external_import_object,
+                                                                   uint64_t gas_limit,
+                                                                   uint32_t *opcode_costs_pointer);
 
 /**
  * Gets the length in bytes of the last error.
