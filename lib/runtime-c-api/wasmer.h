@@ -115,10 +115,6 @@ typedef struct {
 
 typedef struct {
 
-} wasmer_import_object_t;
-
-typedef struct {
-
 } wasmer_table_t;
 
 /**
@@ -137,6 +133,10 @@ typedef struct {
   wasmer_import_export_kind tag;
   wasmer_import_export_value value;
 } wasmer_import_t;
+
+typedef struct {
+
+} wasmer_import_object_t;
 
 typedef struct {
 
@@ -195,8 +195,7 @@ wasmer_result_t wasmer_compile(wasmer_module_t **module,
 wasmer_result_t wasmer_compile_with_gas_metering(wasmer_module_t **module,
                                                  uint8_t *wasm_bytes,
                                                  uint32_t wasm_bytes_len,
-                                                 uint64_t gas_limit,
-                                                 const uint32_t *opcode_costs_pointer);
+                                                 uint64_t gas_limit);
 
 /**
  * Gets export descriptor kind
@@ -458,6 +457,8 @@ wasmer_result_t wasmer_import_func_returns(const wasmer_import_func_t *func,
 wasmer_result_t wasmer_import_func_returns_arity(const wasmer_import_func_t *func,
                                                  uint32_t *result);
 
+wasmer_result_t wasmer_import_object_cache_from_imports(wasmer_import_t *imports, int imports_len);
+
 /**
  * Frees memory of the given ImportObject
  */
@@ -475,10 +476,6 @@ wasmer_result_t wasmer_import_object_extend(wasmer_import_object_t *import_objec
  * See also `wasmer_import_object_append`
  */
 wasmer_import_object_t *wasmer_import_object_new(void);
-
-wasmer_result_t wasmer_import_object_new_from_imports(wasmer_import_object_t **external_import_object,
-                                                      wasmer_import_t *imports,
-                                                      int imports_len);
 
 /**
  * Calls an instances exported function by `name` with the provided parameters.
@@ -552,17 +549,7 @@ wasmer_result_t wasmer_instantiate(wasmer_instance_t **instance,
 wasmer_result_t wasmer_instantiate_with_metering(wasmer_instance_t **instance,
                                                  uint8_t *wasm_bytes,
                                                  uint32_t wasm_bytes_len,
-                                                 wasmer_import_t *imports,
-                                                 int imports_len,
-                                                 uint64_t gas_limit,
-                                                 const uint32_t *opcode_costs_pointer);
-
-wasmer_result_t wasmer_instantiate_with_metering_and_import_object(wasmer_instance_t **instance,
-                                                                   uint8_t *wasm_bytes,
-                                                                   uint32_t wasm_bytes_len,
-                                                                   wasmer_import_object_t *external_import_object,
-                                                                   uint64_t gas_limit,
-                                                                   uint32_t *opcode_costs_pointer);
+                                                 uint64_t gas_limit);
 
 /**
  * Gets the length in bytes of the last error.
@@ -715,6 +702,8 @@ void wasmer_serialized_module_destroy(wasmer_serialized_module_t *serialized_mod
 wasmer_result_t wasmer_serialized_module_from_bytes(wasmer_serialized_module_t **serialized_module,
                                                     const uint8_t *serialized_module_bytes,
                                                     uint32_t serialized_module_bytes_length);
+
+void wasmer_set_opcode_costs(const uint32_t *opcode_costs_pointer);
 
 /**
  * Frees memory for the given Table

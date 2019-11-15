@@ -1,15 +1,12 @@
 use crate::{
-    import::{wasmer_import_t},
     error::{update_last_error, CApiError},
     instance::wasmer_instance_t,
     module::wasmer_module_t,
     wasmer_result_t,
 };
-use libc::{c_int};
 use std::{slice};
 use crate::import::{
-    wasmer_create_import_object_from_imports,
-    ImportError,
+    GLOBAL_IMPORT_OBJECT,
 };
 
 use wasmer_runtime_core::import::ImportObject;
@@ -29,69 +26,21 @@ pub struct wasmer_import_object_t;
 #[allow(clippy::cast_ptr_alignment)]
 #[cfg(feature = "metering")]
 #[no_mangle]
-pub unsafe extern "C" fn wasmer_instantiate_with_metering(
-    instance: *mut *mut wasmer_instance_t,
-    wasm_bytes: *mut u8,
-    wasm_bytes_len: u32,
-    imports: *mut wasmer_import_t,
-    imports_len: c_int,
-    gas_limit: u64,
+pub unsafe extern "C" fn wasmer_set_opcode_costs(
     opcode_costs_pointer: *const u32,
-) -> wasmer_result_t {
-    if wasm_bytes.is_null() {
-        update_last_error(CApiError {
-            msg: "wasm bytes ptr is null".to_string(),
-        });
-        return wasmer_result_t::WASMER_ERROR;
-    }
-
-    let imports_result = wasmer_create_import_object_from_imports(imports, imports_len);
-    let import_object = match imports_result {
-        Err(ImportError::ModuleNameError) => {
-            update_last_error(CApiError { msg: "error converting module name to string".to_string() });
-            return wasmer_result_t::WASMER_ERROR;
-        }
-        Err(ImportError::ImportNameError) => {
-            update_last_error(CApiError { msg: "error converting import_name to string".to_string() });
-            return wasmer_result_t::WASMER_ERROR;
-        }
-        Ok(created_imports_object) => created_imports_object
-    };
-
+) {
     OPCODE_COSTS.copy_from_slice(slice::from_raw_parts(opcode_costs_pointer, OPCODE_COUNT));
-
-    let bytes: &[u8] = slice::from_raw_parts_mut(wasm_bytes, wasm_bytes_len as usize);
-    let compiler = get_metered_compiler(gas_limit);
-    let result_compilation = wasmer_runtime_core::compile_with(bytes, &compiler);
-    let new_module = match result_compilation {
-        Ok(module) => module,
-        Err(_) => {
-            update_last_error(CApiError { msg: "compile error".to_string() });
-            return wasmer_result_t::WASMER_ERROR;
-        }
-    };
-    let result_instantiation = new_module.instantiate(&import_object);
-    let new_instance = match result_instantiation {
-        Ok(instance) => instance,
-        Err(error) => {
-            update_last_error(error);
-            return wasmer_result_t::WASMER_ERROR;
-        }
-    };
-    *instance = Box::into_raw(Box::new(new_instance)) as *mut wasmer_instance_t;
-    wasmer_result_t::WASMER_OK
 }
+
 
 #[allow(clippy::cast_ptr_alignment)]
 #[cfg(feature = "metering")]
 #[no_mangle]
-pub unsafe extern "C" fn wasmer_instantiate_with_metering_and_import_object(
+pub unsafe extern "C" fn wasmer_instantiate_with_metering(
     instance: *mut *mut wasmer_instance_t,
     wasm_bytes: *mut u8,
     wasm_bytes_len: u32,
-    external_import_object: *mut wasmer_import_object_t,
     gas_limit: u64,
-    opcode_costs_pointer: *mut u32,
 ) -> wasmer_result_t {
     if wasm_bytes.is_null() {
         update_last_error(CApiError {
@@ -99,8 +48,6 @@ pub unsafe extern "C" fn wasmer_instantiate_with_metering_and_import_object(
         });
         return wasmer_result_t::WASMER_ERROR;
     }
-
-    OPCODE_COSTS.copy_from_slice(slice::from_raw_parts(opcode_costs_pointer, OPCODE_COUNT));
 
     let bytes: &[u8] = slice::from_raw_parts_mut(wasm_bytes, wasm_bytes_len as usize);
     let compiler = get_metered_compiler(gas_limit);
@@ -113,7 +60,7 @@ pub unsafe extern "C" fn wasmer_instantiate_with_metering_and_import_object(
         }
     };
 
-    let import_object: &mut ImportObject = &mut *(external_import_object as *mut ImportObject);
+    let import_object: &mut ImportObject = &mut *(GLOBAL_IMPORT_OBJECT as *mut ImportObject);
     let result_instantiation = new_module.instantiate(&import_object);
     let new_instance = match result_instantiation {
         Ok(instance) => instance,
@@ -141,7 +88,6 @@ pub unsafe extern "C" fn wasmer_compile_with_gas_metering(
     wasm_bytes: *mut u8,
     wasm_bytes_len: u32,
     gas_limit: u64,
-    opcode_costs_pointer: *const u32,
 ) -> wasmer_result_t {
     if module.is_null() {
         update_last_error(CApiError {
@@ -155,8 +101,6 @@ pub unsafe extern "C" fn wasmer_compile_with_gas_metering(
         });
         return wasmer_result_t::WASMER_ERROR;
     }
-
-    OPCODE_COSTS.copy_from_slice(slice::from_raw_parts(opcode_costs_pointer, OPCODE_COUNT));
 
     let bytes: &[u8] = slice::from_raw_parts_mut(wasm_bytes, wasm_bytes_len as usize);
     let compiler = get_metered_compiler(gas_limit);

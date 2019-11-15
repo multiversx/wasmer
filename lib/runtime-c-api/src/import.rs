@@ -25,6 +25,8 @@ pub enum ImportError {
     ImportNameError,
 }
 
+pub static mut GLOBAL_IMPORT_OBJECT: *mut ImportObject = 0 as *mut ImportObject;
+
 #[repr(C)]
 pub struct wasmer_import_t {
     pub module_name: wasmer_byte_array,
@@ -60,8 +62,7 @@ pub unsafe extern "C" fn wasmer_import_object_new() -> *mut wasmer_import_object
 
 #[allow(clippy::cast_ptr_alignment)]
 #[no_mangle]
-pub unsafe extern "C" fn wasmer_import_object_new_from_imports(
-    external_import_object: *mut *mut wasmer_import_object_t,
+pub unsafe extern "C" fn wasmer_import_object_cache_from_imports(
     imports: *mut wasmer_import_t,
     imports_len: c_int,
 ) -> wasmer_result_t {
@@ -77,7 +78,7 @@ pub unsafe extern "C" fn wasmer_import_object_new_from_imports(
         }
         Ok(created_imports_object) => created_imports_object
     };
-    *external_import_object = Box::into_raw(Box::new(import_object)) as *mut wasmer_import_object_t;
+    GLOBAL_IMPORT_OBJECT = Box::into_raw(Box::new(import_object));
     return wasmer_result_t::WASMER_OK
 }
 
