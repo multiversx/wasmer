@@ -137,6 +137,10 @@ struct wasmer_import_t {
   wasmer_import_export_value value;
 };
 
+struct wasmer_import_object_t {
+
+};
+
 struct wasmer_import_object_iter_t {
 
 };

@@ -155,6 +155,10 @@ typedef struct {
 
 typedef struct {
 
+} wasmer_import_object_t;
+
+typedef struct {
+
 } wasmer_import_object_iter_t;
 
 typedef struct {

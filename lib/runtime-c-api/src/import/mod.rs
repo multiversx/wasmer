@@ -9,9 +9,8 @@ use crate::{
     wasmer_byte_array, wasmer_result_t,
 };
 use libc::{c_int, c_uint};
-use std::{ffi::c_void, ptr, slice, sync::Arc};
+use std::{ffi::c_void, ptr, slice, sync::Arc, convert::TryFrom};
 use std::result::Result;
-use std::{convert::TryFrom, ffi::c_void, ptr, slice, sync::Arc};
 
 use wasmer_runtime::{Global, Memory, Module, Table};
 use wasmer_runtime_core::{
