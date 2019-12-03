@@ -212,7 +212,6 @@ pub fn default_compiler() -> impl Compiler {
             any(
                 feature = "default-backend-cranelift",
                 feature = "default-backend-singlepass",
-                feature = "deterministic-execution"
             )
         ),
         all(
@@ -220,12 +219,16 @@ pub fn default_compiler() -> impl Compiler {
             feature = "default-backend-cranelift",
             any(
                 feature = "default-backend-singlepass",
-                feature = "deterministic-execution"
+                feature = "default-backend-llvm",
             )
         ),
         all(
             feature = "default-backend-singlepass",
-            feature = "deterministic-execution"
+            not(feature = "docs"),
+            any(
+                feature = "default-backend-cranelift",
+                feature = "default-backend-llvm",
+            )
         )
     ))]
     compile_error!(

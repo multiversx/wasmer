@@ -103,7 +103,7 @@ llvm: spectests-llvm emtests-llvm wasitests-llvm
 
 # All tests
 capi:
-	cargo build --release --features backend-cranelift
+	cargo build --release --features backend-singlepass
 	cargo build -p wasmer-runtime-c-api --release
 
 test-capi: capi
