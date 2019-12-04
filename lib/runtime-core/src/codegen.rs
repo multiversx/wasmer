@@ -267,7 +267,7 @@ fn requires_pre_validation(backend: Backend) -> bool {
     match backend {
         Backend::Cranelift => true,
         Backend::LLVM => true,
-        Backend::Singlepass => false,
+        Backend::Singlepass => true,
         Backend::Auto => false,
     }
 }

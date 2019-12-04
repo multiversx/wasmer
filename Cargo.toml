@@ -96,6 +96,7 @@ backend-llvm = [
 ]
 backend-singlepass = [
     "wasmer-singlepass-backend",
+    "wasmer-singlepass-backend/deterministic-execution",
     "wasmer-runtime-core/backend-singlepass",
     "wasmer-runtime/singlepass",
     "wasmer-middleware-common-tests/singlepass",

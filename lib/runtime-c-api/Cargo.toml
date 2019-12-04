@@ -57,7 +57,7 @@ default = ["singlepass-backend", "metering", "wasmer-runtime/deterministic-execu
 debug = ["wasmer-runtime/debug"]
 # cranelift-backend = ["wasmer-runtime/cranelift", "wasmer-runtime/default-backend-cranelift", "wasmer-clif-backend"]
 llvm-backend = ["wasmer-runtime/llvm", "wasmer-runtime/default-backend-llvm", "wasmer-llvm-backend"]
-singlepass-backend = ["wasmer-runtime/singlepass", "wasmer-runtime/default-backend-singlepass", "wasmer-singlepass-backend"]
+singlepass-backend = ["wasmer-runtime/singlepass", "wasmer-runtime/default-backend-singlepass", "wasmer-singlepass-backend", "wasmer-singlepass-backend/deterministic-execution"]
 metering = ["wasmer-middleware-common"]
 wasi = ["wasmer-wasi"]
 
