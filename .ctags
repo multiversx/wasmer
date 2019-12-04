@@ -1,4 +1,5 @@
 --exclude=target/*
+--exclude=*/target/*
 --exclude=docs/*
 --exclude=examples/*
 --exclude=integration_tests/*
@@ -9,3 +10,4 @@
 --exclude=tags
 --exclude=*.sh
 --exclude=scripts/*
+--exclude=Makefile
