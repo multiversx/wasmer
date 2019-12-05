@@ -499,6 +499,8 @@ uint64_t wasmer_instance_get_points_used(wasmer_instance_t *instance);
 
 void wasmer_instance_set_points_used(wasmer_instance_t *instance, uint64_t new_gas);
 
+void wasmer_instance_set_runtime_breakpoint_value(wasmer_instance_t *instance, uint64_t value);
+
 /// Creates a new Instance from the given wasm bytes and imports.
 ///
 /// Returns `wasmer_result_t::WASMER_OK` upon success.

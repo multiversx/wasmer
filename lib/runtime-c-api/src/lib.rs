@@ -101,6 +101,8 @@ pub mod instance;
 pub mod memory;
 #[cfg(feature = "metering")]
 pub mod metering;
+#[cfg(feature = "runtime-breakpoints")]
+pub mod runtime_breakpoints;
 pub mod module;
 pub mod table;
 // `not(target_family = "windows")` is simpler than `unix`.  See build.rs
