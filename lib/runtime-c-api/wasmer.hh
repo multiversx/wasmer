@@ -497,6 +497,8 @@ void wasmer_instance_exports(wasmer_instance_t *instance, wasmer_exports_t **exp
 
 uint64_t wasmer_instance_get_points_used(wasmer_instance_t *instance);
 
+uint64_t wasmer_instance_get_runtime_breakpoint_value(wasmer_instance_t *instance);
+
 void wasmer_instance_set_points_used(wasmer_instance_t *instance, uint64_t new_gas);
 
 void wasmer_instance_set_runtime_breakpoint_value(wasmer_instance_t *instance, uint64_t value);

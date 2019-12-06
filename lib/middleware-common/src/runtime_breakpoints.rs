@@ -7,6 +7,7 @@ use wasmer_runtime_core::{
 };
 
 static RUNTIME_BREAKPOINT_VALUE: InternalField = InternalField::allocate();
+pub const BREAKPOINT_VALUE__NO_BREAKPOINT: u64 = 0;
 
 #[derive(Copy, Clone, Debug)]
 pub struct RuntimeBreakpointReachedError;
@@ -28,29 +29,39 @@ impl FunctionMiddleware for RuntimeBreakpointHandler {
         _module_info: &ModuleInfo,
         sink: &mut EventSink<'a, 'b>,
     ) -> Result<(), Self::Error> {
-        match op {
+
+        let must_add_breakpoint = match op {
             Event::Wasm(&ref op) | Event::WasmOwned(ref op) => {
                 match *op {
                     Operator::Call { .. }
                     | Operator::CallIndirect { .. } => {
-                        sink.push(Event::Internal(InternalEvent::GetInternal(
-                            RUNTIME_BREAKPOINT_VALUE.index() as _,
-                        )));
-                        sink.push(Event::WasmOwned(Operator::I32Eqz));
-                        sink.push(Event::WasmOwned(Operator::If {
-                            ty: WpTypeOrFuncType::Type(WpType::EmptyBlockType),
-                        }));
-                        sink.push(Event::Internal(InternalEvent::Breakpoint(Box::new(|_| {
-                            Err(Box::new(RuntimeBreakpointReachedError))
-                        }))));
-                        sink.push(Event::WasmOwned(Operator::End));
+                        true
                     }
-                    _ => {}
+                    _ => false
                 }
             }
-            _ => {}
-        }
+            _ => false
+        };
+
         sink.push(op);
+
+        if must_add_breakpoint {
+            sink.push(Event::Internal(InternalEvent::GetInternal(
+                RUNTIME_BREAKPOINT_VALUE.index() as _,
+            )));
+            sink.push(Event::WasmOwned(Operator::I64Const {
+                value: BREAKPOINT_VALUE__NO_BREAKPOINT as i64,
+            }));
+            sink.push(Event::WasmOwned(Operator::I64Ne));
+            sink.push(Event::WasmOwned(Operator::If {
+                ty: WpTypeOrFuncType::Type(WpType::EmptyBlockType),
+            }));
+            sink.push(Event::Internal(InternalEvent::Breakpoint(Box::new(|_| {
+                Err(Box::new(RuntimeBreakpointReachedError))
+            }))));
+            sink.push(Event::WasmOwned(Operator::End));
+        }
+
         Ok(())
     }
 }
@@ -59,4 +70,8 @@ impl FunctionMiddleware for RuntimeBreakpointHandler {
 pub fn set_runtime_breakpoint_value(instance: &mut Instance, value: u64) {
     println!("Runtime breakpoint value set to {}", value);
     instance.set_internal(&RUNTIME_BREAKPOINT_VALUE, value);
+}
+
+pub fn get_runtime_breakpoint_value(instance: &mut Instance) -> u64 {
+    instance.get_internal(&RUNTIME_BREAKPOINT_VALUE)
 }
