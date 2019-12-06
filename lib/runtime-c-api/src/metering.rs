@@ -131,10 +131,14 @@ unsafe fn get_metered_compiler(limit: u64) -> impl Compiler {
     #[cfg(feature = "cranelift-backend")]
     use wasmer_clif_backend::CraneliftModuleCodeGenerator as MeteredMCG;
 
+    use wasmer_middleware_common::runtime_breakpoints;
+
     let c: StreamingCompiler<MeteredMCG, _, _, _, _> = StreamingCompiler::new(move || {
         let mut chain = MiddlewareChain::new();
 
         chain.push(metering::Metering::new(limit, &OPCODE_COSTS));
+        chain.push(runtime_breakpoints::RuntimeBreakpointHandler::new());
+
         chain
     });
     c
