@@ -105,6 +105,9 @@ llvm: spectests-llvm emtests-llvm wasitests-llvm
 capi:
 	cargo build -p wasmer-runtime-c-api --release
 
+capi-dev:
+	cargo build -p wasmer-runtime-c-api --profile dev -Z unstable-options
+
 test-capi: capi
 	cargo test -p wasmer-runtime-c-api --release
 
