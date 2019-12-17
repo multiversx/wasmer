@@ -104,10 +104,28 @@ backend-singlepass = [
 wasi = ["wasmer-wasi"]
 managed = ["backend-singlepass", "wasmer-runtime-core/managed"]
 
-[[example]]
-name = "plugin"
-crate-type = ["bin"]
-
-[[example]]
-name = "callback"
-crate-type = ["bin"]
+[profile.dev]
+opt-level = 0      # controls the `--opt-level` the compiler builds with.
+                   # 0-1 is good for debugging. 2 is well-optimized. Max is 3.
+                   # 's' attempts to reduce size, 'z' reduces size even more.
+debug = true       # (u32 or bool) Include debug information (debug symbols).
+                   # Equivalent to `-C debuginfo=2` compiler flag.
+rpath = false      # controls whether compiler should set loader paths.
+                   # If true, passes `-C rpath` flag to the compiler.
+lto = false        # Link Time Optimization usually reduces size of binaries
+                   # and static libraries. Increases compilation time.
+                   # If true, passes `-C lto` flag to the compiler, and if a
+                   # string is specified like 'thin' then `-C lto=thin` will
+                   # be passed.
+debug-assertions = true # controls whether debug assertions are enabled
+                   # (e.g., debug_assert!() and arithmetic overflow checks)
+codegen-units = 16 # if > 1 enables parallel code generation which improves
+                   # compile times, but prevents some optimizations.
+                   # Passes `-C codegen-units`.
+panic = 'unwind'   # panic strategy (`-C panic=...`), can also be 'abort'
+incremental = true # whether or not incremental compilation is enabled
+                   # This can be overridden globally with the CARGO_INCREMENTAL
+                   # environment variable or `build.incremental` config
+                   # variable. Incremental is only used for path sources.
+overflow-checks = true # use overflow checks for integer arithmetic.
+                   # Passes the `-C overflow-checks=...` flag to the compiler.
