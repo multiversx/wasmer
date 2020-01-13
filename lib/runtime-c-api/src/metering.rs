@@ -33,9 +33,6 @@ pub unsafe extern "C" fn wasmer_set_opcode_costs(
     if !OPCODE_COSTS_INITIALIZED {
         OPCODE_COSTS.copy_from_slice(slice::from_raw_parts(opcode_costs_pointer, OPCODE_COUNT));
         OPCODE_COSTS_INITIALIZED = true;
-        println!("Opcode costs have been initialized.");
-    } else {
-        println!("Opcode costs were already initialized.");
     }
 }
 

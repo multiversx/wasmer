@@ -73,7 +73,6 @@ pub unsafe extern "C" fn wasmer_import_object_cache_from_imports(
     imports_len: c_int,
 ) -> wasmer_result_t {
     if GLOBAL_IMPORT_OBJECT_INITIALIZED {
-        println!("Global import object already initialized, skipping.");
         return wasmer_result_t::WASMER_OK;
     }
 
@@ -91,7 +90,6 @@ pub unsafe extern "C" fn wasmer_import_object_cache_from_imports(
     };
     GLOBAL_IMPORT_OBJECT = Box::into_raw(Box::new(import_object));
     GLOBAL_IMPORT_OBJECT_INITIALIZED = true;
-    println!("Global import object initialized.");
     return wasmer_result_t::WASMER_OK
 }
 
