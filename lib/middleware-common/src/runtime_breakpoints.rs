@@ -3,6 +3,7 @@ use wasmer_runtime_core::{
     module::ModuleInfo,
     vm::{InternalField},
     wasmparser::{Operator, Type as WpType, TypeOrFuncType as WpTypeOrFuncType},
+    error::{RuntimeError},
     Instance,
 };
 
@@ -57,7 +58,7 @@ impl FunctionMiddleware for RuntimeBreakpointHandler {
                 ty: WpTypeOrFuncType::Type(WpType::EmptyBlockType),
             }));
             sink.push(Event::Internal(InternalEvent::Breakpoint(Box::new(|_| {
-                Err(Box::new(RuntimeBreakpointReachedError))
+                Err(Box::new(RuntimeError::Trap { msg: Box::from("execution limit exceeded") }))
             }))));
             sink.push(Event::WasmOwned(Operator::End));
         }

@@ -3,6 +3,7 @@ use wasmer_runtime_core::{
     module::ModuleInfo,
     vm::{Ctx, InternalField},
     wasmparser::{Operator, Type as WpType, TypeOrFuncType as WpTypeOrFuncType},
+    error::{RuntimeError},
     Instance,
 };
 
@@ -101,7 +102,7 @@ impl<'q> FunctionMiddleware for Metering<'q> {
                             ty: WpTypeOrFuncType::Type(WpType::EmptyBlockType),
                         }));
                         sink.push(Event::Internal(InternalEvent::Breakpoint(Box::new(|_| {
-                            Err(Box::new(ExecutionLimitExceededError))
+                            Err(Box::new(RuntimeError::Trap { msg: Box::from("execution limit exceeded") }))
                         }))));
                         sink.push(Event::WasmOwned(Operator::End));
                     }
