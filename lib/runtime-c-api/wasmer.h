@@ -27,7 +27,6 @@
 #  define DEPRECATED(message) __declspec(deprecated(message))
 #endif
 
-#define WASMER_WASI_ENABLED
 #endif // WASMER_H_MACROS
 
 
@@ -300,10 +299,6 @@ typedef struct {
   wasmer_import_export_kind tag;
   wasmer_import_export_value value;
 } wasmer_import_t;
-
-typedef struct {
-
-} wasmer_import_object_t;
 
 typedef struct {
 
