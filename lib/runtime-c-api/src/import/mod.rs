@@ -76,7 +76,7 @@ pub unsafe extern "C" fn wasmer_import_object_new() -> *mut wasmer_import_object
 #[no_mangle]
 pub unsafe extern "C" fn wasmer_import_object_cache_from_imports(
     imports: *mut wasmer_import_t,
-    imports_len: c_int,
+    imports_len: c_uint,
 ) -> wasmer_result_t {
     if GLOBAL_IMPORT_OBJECT_INITIALIZED {
         return wasmer_result_t::WASMER_OK;
@@ -104,7 +104,7 @@ pub unsafe extern "C" fn wasmer_import_object_cache_from_imports(
 #[no_mangle]
 pub unsafe fn wasmer_create_import_object_from_imports(
     imports: *mut wasmer_import_t,
-    imports_len: c_int,
+    imports_len: c_uint,
 ) -> Result<ImportObject, ImportError> {
     let imports: &[wasmer_import_t] = slice::from_raw_parts(imports, imports_len as usize);
     let mut import_object = ImportObject::new();

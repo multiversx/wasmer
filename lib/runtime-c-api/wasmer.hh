@@ -611,7 +611,8 @@ wasmer_result_t wasmer_import_func_returns(const wasmer_import_func_t *func,
 wasmer_result_t wasmer_import_func_returns_arity(const wasmer_import_func_t *func,
                                                  uint32_t *result);
 
-wasmer_result_t wasmer_import_object_cache_from_imports(wasmer_import_t *imports, int imports_len);
+wasmer_result_t wasmer_import_object_cache_from_imports(wasmer_import_t *imports,
+                                                        unsigned int imports_len);
 
 /// Frees memory of the given ImportObject
 void wasmer_import_object_destroy(wasmer_import_object_t *import_object);

@@ -19,6 +19,9 @@ use std::{
     sync::{Arc, RwLock},
     usize,
 };
+
+use bincode;
+
 use wasmer_runtime_core::{
     backend::{
         sys::{Memory, Protect},
@@ -664,7 +667,7 @@ impl ModuleCodeGenerator<X64FunctionCode, X64ExecutionContext, CodegenError>
 
     /// Singlepass does validation as it compiles
     fn requires_pre_validation() -> bool {
-        false
+        true
     }
 
     fn backend_id() -> &'static str {
