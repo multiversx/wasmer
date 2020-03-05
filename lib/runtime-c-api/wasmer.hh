@@ -38,7 +38,7 @@
 #include <cstdlib>
 #include <new>
 
-static const uintptr_t OPCODE_COUNT = 410;
+static const uintptr_t OPCODE_COUNT = 447;
 
 #if defined(WASMER_WASI_ENABLED)
 enum class Version : uint8_t {
