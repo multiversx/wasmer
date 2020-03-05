@@ -103,7 +103,7 @@ impl<'q> FunctionMiddleware for Metering<'q> {
                             ty: WpTypeOrFuncType::Type(WpType::EmptyBlockType),
                         }));
                         sink.push(Event::Internal(InternalEvent::Breakpoint(Box::new(|_| {
-                            Err(Box::new(RuntimeError::Trap { msg: Box::from("execution limit exceeded") }))
+                            Err(Box::new(RuntimeError(Box::new("execution limit exceeded".to_string()))))
                         }))));
                         sink.push(Event::WasmOwned(Operator::End));
                     }

@@ -17,7 +17,7 @@ use wasmer_runtime_core::backend::Compiler;
 #[cfg(not(feature = "cranelift-backend"))]
 use wasmer_middleware_common::metering;
 
-pub const OPCODE_COUNT: usize = 410;
+pub const OPCODE_COUNT: usize = 447;
 static mut OPCODE_COSTS: [u32; OPCODE_COUNT] = [0; OPCODE_COUNT];
 static mut OPCODE_COSTS_INITIALIZED: bool = false;
 

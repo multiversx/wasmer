@@ -29,7 +29,7 @@ impl FunctionMiddleware for RuntimeBreakpointHandler {
         op: Event<'a, 'b>,
         _module_info: &ModuleInfo,
         sink: &mut EventSink<'a, 'b>,
-        source_loc: u32,
+        _source_loc: u32,
     ) -> Result<(), Self::Error> {
 
         let must_add_breakpoint = match op {
@@ -59,7 +59,7 @@ impl FunctionMiddleware for RuntimeBreakpointHandler {
                 ty: WpTypeOrFuncType::Type(WpType::EmptyBlockType),
             }));
             sink.push(Event::Internal(InternalEvent::Breakpoint(Box::new(|_| {
-                Err(Box::new(RuntimeError::Trap { msg: Box::from("execution limit exceeded") }))
+                Err(Box::new(RuntimeError(Box::new("breakpoint reached".to_string()))))
             }))));
             sink.push(Event::WasmOwned(Operator::End));
         }
