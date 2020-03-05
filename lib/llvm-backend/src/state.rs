@@ -1,3 +1,4 @@
+use crate::code::CodegenError;
 use inkwell::{
     basic_block::BasicBlock,
     values::{BasicValue, BasicValueEnum, PhiValue},
@@ -5,7 +6,6 @@ use inkwell::{
 use smallvec::SmallVec;
 use std::cell::Cell;
 use std::ops::{BitAnd, BitOr, BitOrAssign};
-use wasmparser::BinaryReaderError;
 
 #[derive(Debug)]
 pub enum ControlFrame<'ctx> {
@@ -229,36 +229,40 @@ impl<'ctx> State<'ctx> {
         self.stack.truncate(stack_size_snapshot);
     }
 
-    pub fn outermost_frame(&self) -> Result<&ControlFrame<'ctx>, BinaryReaderError> {
-        self.control_stack.get(0).ok_or(BinaryReaderError {
-            message: "invalid control stack depth",
-            offset: -1isize as usize,
+    pub fn outermost_frame(&self) -> Result<&ControlFrame<'ctx>, CodegenError> {
+        self.control_stack.get(0).ok_or(CodegenError {
+            message: "outermost_frame: invalid control stack depth".to_string(),
         })
     }
 
-    pub fn frame_at_depth(&self, depth: u32) -> Result<&ControlFrame<'ctx>, BinaryReaderError> {
-        let index = self.control_stack.len() - 1 - (depth as usize);
-        self.control_stack.get(index).ok_or(BinaryReaderError {
-            message: "invalid control stack depth",
-            offset: -1isize as usize,
-        })
+    pub fn frame_at_depth(&self, depth: u32) -> Result<&ControlFrame<'ctx>, CodegenError> {
+        let index = self
+            .control_stack
+            .len()
+            .checked_sub(1 + (depth as usize))
+            .ok_or(CodegenError {
+                message: "frame_at_depth: invalid control stack depth".to_string(),
+            })?;
+        Ok(&self.control_stack[index])
     }
 
     pub fn frame_at_depth_mut(
         &mut self,
         depth: u32,
-    ) -> Result<&mut ControlFrame<'ctx>, BinaryReaderError> {
-        let index = self.control_stack.len() - 1 - (depth as usize);
-        self.control_stack.get_mut(index).ok_or(BinaryReaderError {
-            message: "invalid control stack depth",
-            offset: -1isize as usize,
-        })
+    ) -> Result<&mut ControlFrame<'ctx>, CodegenError> {
+        let index = self
+            .control_stack
+            .len()
+            .checked_sub(1 + (depth as usize))
+            .ok_or(CodegenError {
+                message: "frame_at_depth_mut: invalid control stack depth".to_string(),
+            })?;
+        Ok(&mut self.control_stack[index])
     }
 
-    pub fn pop_frame(&mut self) -> Result<ControlFrame<'ctx>, BinaryReaderError> {
-        self.control_stack.pop().ok_or(BinaryReaderError {
-            message: "cannot pop from control stack",
-            offset: -1isize as usize,
+    pub fn pop_frame(&mut self) -> Result<ControlFrame<'ctx>, CodegenError> {
+        self.control_stack.pop().ok_or(CodegenError {
+            message: "pop_frame: cannot pop from control stack".to_string(),
         })
     }
 
@@ -277,20 +281,17 @@ impl<'ctx> State<'ctx> {
         self.stack.push((value.as_basic_value_enum(), info));
     }
 
-    pub fn pop1(&mut self) -> Result<BasicValueEnum<'ctx>, BinaryReaderError> {
+    pub fn pop1(&mut self) -> Result<BasicValueEnum<'ctx>, CodegenError> {
         Ok(self.pop1_extra()?.0)
     }
 
-    pub fn pop1_extra(&mut self) -> Result<(BasicValueEnum<'ctx>, ExtraInfo), BinaryReaderError> {
-        self.stack.pop().ok_or(BinaryReaderError {
-            message: "invalid value stack",
-            offset: -1isize as usize,
+    pub fn pop1_extra(&mut self) -> Result<(BasicValueEnum<'ctx>, ExtraInfo), CodegenError> {
+        self.stack.pop().ok_or(CodegenError {
+            message: "pop1_extra: invalid value stack".to_string(),
         })
     }
 
-    pub fn pop2(
-        &mut self,
-    ) -> Result<(BasicValueEnum<'ctx>, BasicValueEnum<'ctx>), BinaryReaderError> {
+    pub fn pop2(&mut self) -> Result<(BasicValueEnum<'ctx>, BasicValueEnum<'ctx>), CodegenError> {
         let v2 = self.pop1()?;
         let v1 = self.pop1()?;
         Ok((v1, v2))
@@ -303,7 +304,7 @@ impl<'ctx> State<'ctx> {
             (BasicValueEnum<'ctx>, ExtraInfo),
             (BasicValueEnum<'ctx>, ExtraInfo),
         ),
-        BinaryReaderError,
+        CodegenError,
     > {
         let v2 = self.pop1_extra()?;
         let v1 = self.pop1_extra()?;
@@ -318,7 +319,7 @@ impl<'ctx> State<'ctx> {
             (BasicValueEnum<'ctx>, ExtraInfo),
             (BasicValueEnum<'ctx>, ExtraInfo),
         ),
-        BinaryReaderError,
+        CodegenError,
     > {
         let v3 = self.pop1_extra()?;
         let v2 = self.pop1_extra()?;
@@ -326,51 +327,43 @@ impl<'ctx> State<'ctx> {
         Ok((v1, v2, v3))
     }
 
-    pub fn peek1_extra(&self) -> Result<(BasicValueEnum<'ctx>, ExtraInfo), BinaryReaderError> {
-        self.stack
-            .get(self.stack.len() - 1)
-            .ok_or(BinaryReaderError {
-                message: "invalid value stack",
-                offset: -1isize as usize,
-            })
-            .map(|v| *v)
+    pub fn peek1_extra(&self) -> Result<(BasicValueEnum<'ctx>, ExtraInfo), CodegenError> {
+        let index = self.stack.len().checked_sub(1).ok_or(CodegenError {
+            message: "peek1_extra: invalid value stack".to_string(),
+        })?;
+        Ok(self.stack[index])
     }
 
-    pub fn peekn(&self, n: usize) -> Result<Vec<BasicValueEnum<'ctx>>, BinaryReaderError> {
+    pub fn peekn(&self, n: usize) -> Result<Vec<BasicValueEnum<'ctx>>, CodegenError> {
         Ok(self.peekn_extra(n)?.iter().map(|x| x.0).collect())
     }
 
     pub fn peekn_extra(
         &self,
         n: usize,
-    ) -> Result<&[(BasicValueEnum<'ctx>, ExtraInfo)], BinaryReaderError> {
-        let new_len = self.stack.len().checked_sub(n).ok_or(BinaryReaderError {
-            message: "invalid value stack",
-            offset: -1isize as usize,
+    ) -> Result<&[(BasicValueEnum<'ctx>, ExtraInfo)], CodegenError> {
+        let index = self.stack.len().checked_sub(n).ok_or(CodegenError {
+            message: "peekn_extra: invalid value stack".to_string(),
         })?;
 
-        Ok(&self.stack[new_len..])
+        Ok(&self.stack[index..])
     }
 
     pub fn popn_save_extra(
         &mut self,
         n: usize,
-    ) -> Result<Vec<(BasicValueEnum<'ctx>, ExtraInfo)>, BinaryReaderError> {
+    ) -> Result<Vec<(BasicValueEnum<'ctx>, ExtraInfo)>, CodegenError> {
         let v = self.peekn_extra(n)?.to_vec();
         self.popn(n)?;
         Ok(v)
     }
 
-    pub fn popn(&mut self, n: usize) -> Result<(), BinaryReaderError> {
-        if self.stack.len() < n {
-            return Err(BinaryReaderError {
-                message: "invalid value stack",
-                offset: -1isize as usize,
-            });
-        }
+    pub fn popn(&mut self, n: usize) -> Result<(), CodegenError> {
+        let index = self.stack.len().checked_sub(n).ok_or(CodegenError {
+            message: "popn: invalid value stack".to_string(),
+        })?;
 
-        let new_len = self.stack.len() - n;
-        self.stack.truncate(new_len);
+        self.stack.truncate(index);
         Ok(())
     }
 

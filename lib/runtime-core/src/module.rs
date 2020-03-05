@@ -1,7 +1,7 @@
 //! The module module contains the implementation data structures and helper functions used to
 //! manipulate and access wasm modules.
 use crate::{
-    backend::{Backend, RunnableModule},
+    backend::RunnableModule,
     cache::{Artifact, Error as CacheError},
     error,
     import::ImportObject,
@@ -16,6 +16,8 @@ use crate::{
 };
 
 use crate::backend::CacheGen;
+#[cfg(feature = "generate-debug-information")]
+use crate::jit_debug;
 use indexmap::IndexMap;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -23,9 +25,8 @@ use std::sync::Arc;
 /// This is used to instantiate a new WebAssembly module.
 #[doc(hidden)]
 pub struct ModuleInner {
-    pub runnable_module: Box<dyn RunnableModule>,
+    pub runnable_module: Arc<Box<dyn RunnableModule>>,
     pub cache_gen: Box<dyn CacheGen>,
-
     pub info: ModuleInfo,
 }
 
@@ -66,7 +67,7 @@ pub struct ModuleInfo {
     /// Map signature index to function signature.
     pub signatures: Map<SigIndex, FuncSig>,
     /// Backend.
-    pub backend: Backend,
+    pub backend: String,
 
     /// Table of namespace indexes.
     pub namespace_table: StringTable<NamespaceIndex>,
@@ -78,6 +79,15 @@ pub struct ModuleInfo {
 
     /// Custom sections.
     pub custom_sections: HashMap<String, Vec<u8>>,
+
+    /// Flag controlling whether or not debug information for use in a debugger
+    /// will be generated.
+    pub generate_debug_info: bool,
+
+    #[cfg(feature = "generate-debug-information")]
+    #[serde(skip)]
+    /// Resource manager of debug information being used by a debugger.
+    pub(crate) debug_info_manager: jit_debug::JitCodeDebugInfoManager,
 }
 
 impl ModuleInfo {
@@ -101,11 +111,9 @@ impl ModuleInfo {
 
 /// A compiled WebAssembly module.
 ///
-/// `Module` is returned by the [`compile`] and
-/// [`compile_with`] functions.
+/// `Module` is returned by the [`compile_with`][] function.
 ///
-/// [`compile`]: fn.compile.html
-/// [`compile_with`]: fn.compile_with.html
+/// [`compile_with`]: crate::compile_with
 pub struct Module {
     inner: Arc<ModuleInner>,
 }
@@ -174,16 +182,25 @@ pub struct ImportName {
     pub name_index: NameIndex,
 }
 
-/// Kinds of export indexes.
+/// A wrapper around the [`TypedIndex`]es for Wasm functions, Wasm memories,
+/// Wasm globals, and Wasm tables.
+///
+/// Used in [`ModuleInfo`] to access function signatures ([`SigIndex`]s,
+/// [`FuncSig`]), [`GlobalInit`]s, [`MemoryDescriptor`]s, and
+/// [`TableDescriptor`]s.
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExportIndex {
-    /// Function export index.
+    /// Function export index. [`FuncIndex`] is a type-safe handle referring to
+    /// a Wasm function.
     Func(FuncIndex),
-    /// Memory export index.
+    /// Memory export index. [`MemoryIndex`] is a type-safe handle referring to
+    /// a Wasm memory.
     Memory(MemoryIndex),
-    /// Global export index.
+    /// Global export index. [`GlobalIndex`] is a type-safe handle referring to
+    /// a Wasm global.
     Global(GlobalIndex),
-    /// Table export index.
+    /// Table export index. [`TableIndex`] is a type-safe handle referring to
+    /// to a Wasm table.
     Table(TableIndex),
 }
 
@@ -218,7 +235,7 @@ pub struct StringTableBuilder<K: TypedIndex> {
 }
 
 impl<K: TypedIndex> StringTableBuilder<K> {
-    /// Creates a new `StringTableBuilder`.
+    /// Creates a new [`StringTableBuilder`].
     pub fn new() -> Self {
         Self {
             map: IndexMap::new(),
@@ -250,7 +267,7 @@ impl<K: TypedIndex> StringTableBuilder<K> {
         }
     }
 
-    /// Finish building the `StringTable`.
+    /// Finish building the [`StringTable`].
     pub fn finish(self) -> StringTable<K> {
         let table = self
             .map
@@ -291,7 +308,7 @@ impl<K: TypedIndex> StringTable<K> {
     }
 }
 
-/// Namespace index.
+/// A type-safe handle referring to a module namespace.
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct NamespaceIndex(u32);
 
@@ -307,7 +324,7 @@ impl TypedIndex for NamespaceIndex {
     }
 }
 
-/// Name index.
+/// A type-safe handle referring to a name in a module namespace.
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct NameIndex(u32);
 

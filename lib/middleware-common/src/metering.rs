@@ -50,6 +50,7 @@ impl<'q> FunctionMiddleware for Metering<'q> {
         op: Event<'a, 'b>,
         _module_info: &ModuleInfo,
         sink: &mut EventSink<'a, 'b>,
+        _source_loc: u32,
     ) -> Result<(), Self::Error> {
         match op {
             Event::Internal(InternalEvent::FunctionBegin(_)) => {
