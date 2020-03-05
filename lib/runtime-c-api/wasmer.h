@@ -422,6 +422,19 @@ wasmer_result_t wasmer_compile(wasmer_module_t **module,
                                uint8_t *wasm_bytes,
                                uint32_t wasm_bytes_len);
 
+/**
+ * Creates a new Module with gas limit from the given wasm bytes.
+ *
+ * Returns `wasmer_result_t::WASMER_OK` upon success.
+ *
+ * Returns `wasmer_result_t::WASMER_ERROR` upon failure. Use `wasmer_last_error_length`
+ * and `wasmer_last_error_message` to get an error message.
+ */
+wasmer_result_t wasmer_compile_with_gas_metering(wasmer_module_t **module,
+                                                 uint8_t *wasm_bytes,
+                                                 uint32_t wasm_bytes_len,
+                                                 uint64_t gas_limit);
+
 #if defined(WASMER_EMSCRIPTEN_ENABLED)
 /**
  * Convenience function for setting up arguments and calling the Emscripten
@@ -479,19 +492,6 @@ wasmer_emscripten_globals_t *wasmer_emscripten_get_globals(const wasmer_module_t
 wasmer_result_t wasmer_emscripten_set_up(wasmer_instance_t *instance,
                                          wasmer_emscripten_globals_t *globals);
 #endif
-
-/**
- * Creates a new Module with gas limit from the given wasm bytes.
- *
- * Returns `wasmer_result_t::WASMER_OK` upon success.
- *
- * Returns `wasmer_result_t::WASMER_ERROR` upon failure. Use `wasmer_last_error_length`
- * and `wasmer_last_error_message` to get an error message.
- */
-wasmer_result_t wasmer_compile_with_gas_metering(wasmer_module_t **module,
-                                                 uint8_t *wasm_bytes,
-                                                 uint32_t wasm_bytes_len,
-                                                 uint64_t gas_limit);
 
 /**
  * Gets export descriptor kind

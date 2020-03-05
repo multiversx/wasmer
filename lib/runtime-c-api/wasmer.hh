@@ -27,7 +27,6 @@
 #  define DEPRECATED(message) __declspec(deprecated(message))
 #endif
 
-#define WASMER_WASI_ENABLED
 #endif // WASMER_H_MACROS
 
 
@@ -236,10 +235,6 @@ struct wasmer_import_t {
   wasmer_byte_array import_name;
   wasmer_import_export_kind tag;
   wasmer_import_export_value value;
-};
-
-struct wasmer_import_object_t {
-
 };
 
 struct wasmer_import_object_iter_t {

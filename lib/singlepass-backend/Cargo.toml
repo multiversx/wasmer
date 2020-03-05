@@ -20,6 +20,8 @@ nix = "0.15"
 libc = "0.2.60"
 smallvec = "0.6"
 wasmparser = "0.51.3"
+[dependencies.serde_derive]
+version = "1.0"
 
 [features]
 default = ["deterministic-execution"]

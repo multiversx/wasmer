@@ -102,7 +102,6 @@ llvm: spectests-llvm emtests-llvm wasitests-llvm
 
 
 # All tests
-<<<<<<< HEAD
 capi:
 	cargo build -p wasmer-runtime-c-api --release
 
@@ -121,9 +120,6 @@ capi-llvm:
 capi-emscripten:
 	cargo build --manifest-path lib/runtime-c-api/Cargo.toml --release \
 		--no-default-features --features singlepass-backend,emscripten
-
-# We use singlepass as the default backend for the capi for now
-capi: capi-singlepass
 
 test-capi-singlepass: capi-singlepass
 	cargo test --manifest-path lib/runtime-c-api/Cargo.toml --release \

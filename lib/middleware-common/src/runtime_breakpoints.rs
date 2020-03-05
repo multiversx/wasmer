@@ -29,6 +29,7 @@ impl FunctionMiddleware for RuntimeBreakpointHandler {
         op: Event<'a, 'b>,
         _module_info: &ModuleInfo,
         sink: &mut EventSink<'a, 'b>,
+        source_loc: u32,
     ) -> Result<(), Self::Error> {
 
         let must_add_breakpoint = match op {
