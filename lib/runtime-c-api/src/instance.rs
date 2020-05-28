@@ -23,6 +23,10 @@ use crate::metering::OPCODE_COSTS;
 #[cfg(not(feature = "cranelift-backend"))]
 use wasmer_middleware_common::metering;
 
+use wasmer_middleware_common::runtime_breakpoints;
+use wasmer_middleware_common::opcode_trace;
+
+
 
 /// Opaque pointer to a `wasmer_runtime::Instance` value in Rust.
 ///
@@ -222,13 +226,11 @@ pub unsafe extern "C" fn wasmer_instantiate_with_options(
     let new_module = match result_compilation {
         Ok(module) => module,
         Err(_) => {
-            println!("compiler error");
             update_last_error(CApiError { msg: "compile error".to_string() });
             return wasmer_result_t::WASMER_ERROR;
         }
     };
 
-    println!("compiled ok");
     let import_object: &mut ImportObject = &mut *(GLOBAL_IMPORT_OBJECT as *mut ImportObject);
     let result_instantiation = new_module.instantiate(&import_object);
     let new_instance = match result_instantiation {
@@ -248,9 +250,6 @@ unsafe fn prepare_middleware_chain_generator(options: &CompilationOptions) -> im
 
     let chain_generator = move || {
         let mut chain = MiddlewareChain::new();
-
-        use wasmer_middleware_common::runtime_breakpoints;
-        use wasmer_middleware_common::opcode_trace;
 
         #[cfg(feature = "metering")]
         chain.push(metering::Metering::new(gas_limit, &OPCODE_COSTS));
@@ -401,9 +400,12 @@ pub unsafe extern "C" fn wasmer_instance_call(
     let func_name_r = func_name_c.to_str().unwrap();
 
     let results: &mut [wasmer_value_t] = slice::from_raw_parts_mut(results, results_len as usize);
-    let result = (&*(instance as *mut Instance)).call(func_name_r, &params[..]);
+    let instance = &mut *(instance as *mut Instance);
 
-    match result {
+    wasmer_middleware_common::opcode_trace::reset_opcodetracer_last_location(instance);
+    let result = instance.call(func_name_r, &params[..]);
+
+    let result = match result {
         Ok(results_vec) => {
             if !results_vec.is_empty() {
                 let ret = match results_vec[0] {
@@ -433,7 +435,15 @@ pub unsafe extern "C" fn wasmer_instance_call(
             update_last_error(err);
             wasmer_result_t::WASMER_ERROR
         }
+    };
+
+    let last_opcode_location = wasmer_middleware_common::opcode_trace::get_opcodetracer_last_location(instance);
+    if last_opcode_location > 0 {
+        println!("wasmer_instance_call MODULE_EXPORTS {:#?}\n", instance.module.info.exports);
+        println!("wasmer_instance_call OPCODE_LAST_LOCATION = {}", last_opcode_location);
     }
+
+    result
 }
 
 /// Gets all the exports of the given WebAssembly instance.

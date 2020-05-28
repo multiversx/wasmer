@@ -86,6 +86,10 @@ impl FunctionMiddleware for OpcodeTracer {
     }
 }
 
-pub fn get_runtime_last_location(instance: &mut Instance) -> u64 {
+pub fn get_opcodetracer_last_location(instance: &mut Instance) -> u64 {
     instance.get_internal(&OPCODE_LAST_LOCATION)
+}
+
+pub fn reset_opcodetracer_last_location(instance: &mut Instance) {
+    instance.set_internal(&OPCODE_LAST_LOCATION, 0);
 }
