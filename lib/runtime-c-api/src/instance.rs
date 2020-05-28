@@ -3,7 +3,7 @@
 use crate::{
     error::{update_last_error, CApiError},
     export::{wasmer_exports_t, wasmer_import_export_kind, NamedExport, NamedExports},
-    import::wasmer_import_t,
+    import::{wasmer_import_t, GLOBAL_IMPORT_OBJECT},
     memory::wasmer_memory_t,
     value::{wasmer_value, wasmer_value_t, wasmer_value_tag},
     wasmer_result_t,
@@ -15,6 +15,14 @@ use wasmer_runtime_core::{
     export::Export,
     import::{ImportObject, Namespace},
 };
+
+use wasmer_runtime_core::backend::Compiler;
+use wasmer_runtime_core::codegen::{MiddlewareChain, StreamingCompiler};
+use crate::metering::OPCODE_COSTS;
+
+#[cfg(not(feature = "cranelift-backend"))]
+use wasmer_middleware_common::metering;
+
 
 /// Opaque pointer to a `wasmer_runtime::Instance` value in Rust.
 ///
@@ -177,6 +185,102 @@ pub unsafe extern "C" fn wasmer_instantiate(
     *instance = Box::into_raw(Box::new(new_instance)) as *mut wasmer_instance_t;
     wasmer_result_t::WASMER_OK
 }
+
+
+#[repr(C)]
+pub struct wasmer_import_object_t;
+
+#[repr(C)]
+pub struct wasmer_compilation_options_t;
+
+pub struct CompilationOptions {
+    pub gas_limit: u64,
+    pub opcode_trace: bool,
+}
+
+#[allow(clippy::cast_ptr_alignment)]
+#[cfg(feature = "metering")]
+#[no_mangle]
+pub unsafe extern "C" fn wasmer_instantiate_with_options(
+    instance: *mut *mut wasmer_instance_t,
+    wasm_bytes: *mut u8,
+    wasm_bytes_len: u32,
+    options: *const wasmer_compilation_options_t,
+) -> wasmer_result_t {
+    if wasm_bytes.is_null() {
+        update_last_error(CApiError {
+            msg: "wasm bytes ptr is null".to_string(),
+        });
+        return wasmer_result_t::WASMER_ERROR;
+    }
+
+    let bytes: &[u8] = slice::from_raw_parts_mut(wasm_bytes, wasm_bytes_len as usize);
+    let options: &CompilationOptions = &*(options as *const CompilationOptions);
+    let compiler_chain_generator = prepare_middleware_chain_generator(&options);
+    let compiler = get_compiler(compiler_chain_generator);
+    let result_compilation = wasmer_runtime_core::compile_with(bytes, &compiler);
+    let new_module = match result_compilation {
+        Ok(module) => module,
+        Err(_) => {
+            println!("compiler error");
+            update_last_error(CApiError { msg: "compile error".to_string() });
+            return wasmer_result_t::WASMER_ERROR;
+        }
+    };
+
+    println!("compiled ok");
+    let import_object: &mut ImportObject = &mut *(GLOBAL_IMPORT_OBJECT as *mut ImportObject);
+    let result_instantiation = new_module.instantiate(&import_object);
+    let new_instance = match result_instantiation {
+        Ok(instance) => instance,
+        Err(error) => {
+            update_last_error(error);
+            return wasmer_result_t::WASMER_ERROR;
+        }
+    };
+    *instance = Box::into_raw(Box::new(new_instance)) as *mut wasmer_instance_t;
+    wasmer_result_t::WASMER_OK
+}
+
+unsafe fn prepare_middleware_chain_generator(options: &CompilationOptions) -> impl Fn() -> MiddlewareChain {
+    let gas_limit = options.gas_limit;
+    let opcode_trace = options.opcode_trace;
+
+    let chain_generator = move || {
+        let mut chain = MiddlewareChain::new();
+
+        use wasmer_middleware_common::runtime_breakpoints;
+        use wasmer_middleware_common::opcode_trace;
+
+        #[cfg(feature = "metering")]
+        chain.push(metering::Metering::new(gas_limit, &OPCODE_COSTS));
+
+        chain.push(runtime_breakpoints::RuntimeBreakpointHandler::new());
+
+        if opcode_trace {
+            chain.push(opcode_trace::OpcodeTracer::new());
+        };
+
+        chain
+    };
+
+    chain_generator
+}
+
+unsafe fn get_compiler(chain_generator: impl Fn() -> MiddlewareChain) -> impl Compiler {
+    #[cfg(feature = "llvm-backend")]
+    use wasmer_llvm_backend::ModuleCodeGenerator as MeteredMCG;
+
+    #[cfg(feature = "singlepass-backend")]
+    use wasmer_singlepass_backend::ModuleCodeGenerator as MeteredMCG;
+
+    #[cfg(feature = "cranelift-backend")]
+    use wasmer_clif_backend::CraneliftModuleCodeGenerator as MeteredMCG;
+
+    let compiler: StreamingCompiler<MeteredMCG, _, _, _, _> = StreamingCompiler::new(chain_generator);
+    compiler
+}
+
 
 /// Returns the instance context. Learn more by looking at the
 /// `wasmer_instance_context_t` struct.

@@ -270,6 +270,10 @@ struct wasmer_instance_context_t {
 
 };
 
+struct wasmer_compilation_options_t {
+
+};
+
 /// The `wasmer_limit_option_t` struct represents an optional limit
 /// for `wasmer_limits_t`.
 struct wasmer_limit_option_t {
@@ -920,10 +924,10 @@ wasmer_result_t wasmer_instantiate(wasmer_instance_t **instance,
                                    wasmer_import_t *imports,
                                    int imports_len);
 
-wasmer_result_t wasmer_instantiate_with_metering(wasmer_instance_t **instance,
-                                                 uint8_t *wasm_bytes,
-                                                 uint32_t wasm_bytes_len,
-                                                 uint64_t gas_limit);
+wasmer_result_t wasmer_instantiate_with_options(wasmer_instance_t **instance,
+                                                uint8_t *wasm_bytes,
+                                                uint32_t wasm_bytes_len,
+                                                const wasmer_compilation_options_t *options);
 
 /// Gets the length in bytes of the last error if any.
 ///

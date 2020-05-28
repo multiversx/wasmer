@@ -68,7 +68,6 @@ impl FunctionMiddleware for RuntimeBreakpointHandler {
     }
 }
 
-
 pub fn set_runtime_breakpoint_value(instance: &mut Instance, value: u64) {
     instance.set_internal(&RUNTIME_BREAKPOINT_VALUE, value);
 }

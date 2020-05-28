@@ -18,3 +18,4 @@ pub mod metering;
 pub mod metering_costs;
 
 pub mod runtime_breakpoints;
+pub mod opcode_trace;
