@@ -248,7 +248,7 @@ pub struct X64ExecutionContext {
     breakpoints: BreakpointMap,
     func_import_count: usize,
     msm: ModuleStateMap,
-    exception_table: ExceptionTable,
+    exception_table: Option<ExceptionTable>,
 }
 
 /// On-disk cache format.
@@ -273,7 +273,7 @@ pub struct CacheImage {
     msm: ModuleStateMap,
 
     /// An exception table that maps instruction offsets to exception codes.
-    exception_table: ExceptionTable,
+    exception_table: Option<ExceptionTable>,
 }
 
 #[derive(Debug)]
@@ -333,7 +333,10 @@ impl RunnableModule for X64ExecutionContext {
     }
 
     fn get_exception_table(&self) -> Option<&ExceptionTable> {
-        Some(&self.exception_table)
+        match &self.exception_table {
+            Some(etable) => { Some(&etable) }
+            None => None
+        }
     }
 
     unsafe fn patch_local_function(&self, idx: usize, target_address: usize) -> bool {
@@ -693,13 +696,13 @@ impl ModuleCodeGenerator<X64FunctionCode, X64ExecutionContext, CodegenError>
                     x.assembler.take().unwrap(),
                     x.function_labels.take().unwrap(),
                     x.breakpoints.take().unwrap(),
-                    x.exception_table.take().unwrap(),
+                    x.exception_table.take(),
                 ),
                 None => (
                     self.assembler.take().unwrap(),
                     self.function_labels.take().unwrap(),
                     HashMap::new(),
-                    ExceptionTable::new(),
+                    None,
                 ),
             };
 
@@ -735,7 +738,7 @@ impl ModuleCodeGenerator<X64FunctionCode, X64ExecutionContext, CodegenError>
             machine,
             unreachable_depth: 0,
             config: self.config.as_ref().unwrap().clone(),
-            exception_table: Some(exception_table),
+            exception_table: exception_table,
         };
         self.functions.push(code);
         Ok(self.functions.last_mut().unwrap())
@@ -758,13 +761,13 @@ impl ModuleCodeGenerator<X64FunctionCode, X64ExecutionContext, CodegenError>
                     x.assembler.take().unwrap(),
                     x.function_labels.take().unwrap(),
                     x.breakpoints.take().unwrap(),
-                    x.exception_table.take().unwrap(),
+                    x.exception_table.take(),
                 ),
                 None => (
                     self.assembler.take().unwrap(),
                     self.function_labels.take().unwrap(),
                     HashMap::new(),
-                    ExceptionTable::new(),
+                    None,
                 ),
             };
 
@@ -852,7 +855,7 @@ impl ModuleCodeGenerator<X64FunctionCode, X64ExecutionContext, CodegenError>
                 function_pointers: out_labels,
                 function_offsets: out_offsets,
                 msm: msm,
-                exception_table,
+                exception_table: exception_table,
             },
             None,
             Box::new(cache),
@@ -1011,7 +1014,7 @@ impl X64FunctionCode {
     fn emit_relaxed_xdiv(
         a: &mut Assembler,
         m: &mut Machine,
-        etable: &mut ExceptionTable,
+        exception_table: &mut Option<ExceptionTable>,
         op: fn(&mut Assembler, Size, Location),
         sz: Size,
         loc: Location,
@@ -1023,16 +1026,26 @@ impl X64FunctionCode {
             Location::Imm64(_) | Location::Imm32(_) => {
                 a.emit_mov(sz, loc, Location::GPR(GPR::RCX)); // must not be used during div (rax, rdx)
                 Self::mark_trappable(a, m, fsm, control_stack);
-                etable
-                    .offset_to_code
-                    .insert(a.get_offset().0, ExceptionCode::IllegalArithmetic);
+
+                match exception_table {
+                    Some(etable) => { etable
+                                        .offset_to_code
+                                        .insert(a.get_offset().0, ExceptionCode::IllegalArithmetic); }
+                    None => {}
+                };
+
                 op(a, sz, Location::GPR(GPR::RCX));
             }
             _ => {
                 Self::mark_trappable(a, m, fsm, control_stack);
-                etable
-                    .offset_to_code
-                    .insert(a.get_offset().0, ExceptionCode::IllegalArithmetic);
+
+                match exception_table {
+                    Some(etable) => { etable
+                                        .offset_to_code
+                                        .insert(a.get_offset().0, ExceptionCode::IllegalArithmetic); }
+                    None => {}
+                };
+
                 op(a, sz, loc);
             }
         }
@@ -1927,7 +1940,7 @@ impl X64FunctionCode {
         config: &CodegenConfig,
         a: &mut Assembler,
         m: &mut Machine,
-        etable: &mut ExceptionTable,
+        exception_table: &mut Option<ExceptionTable>,
         addr: Location,
         memarg: &MemoryImmediate,
         check_alignment: bool,
@@ -2002,12 +2015,18 @@ impl X64FunctionCode {
             a.emit_add(Size::S64, Location::GPR(tmp_base), Location::GPR(tmp_addr));
             a.emit_cmp(Size::S64, Location::GPR(tmp_bound), Location::GPR(tmp_addr));
 
-            Self::mark_range_with_exception_code(
-                a,
-                etable,
-                ExceptionCode::MemoryOutOfBounds,
-                |a| a.emit_conditional_trap(Condition::Above),
-            );
+            match exception_table {
+                Some(etable) => {
+                    Self::mark_range_with_exception_code(
+                        a,
+                        etable,
+                        ExceptionCode::MemoryOutOfBounds,
+                        |a| a.emit_conditional_trap(Condition::Above),
+                    );
+                }
+                None => { a.emit_conditional_trap(Condition::Above); }
+            };
+
 
             m.release_temp_gpr(tmp_bound);
         }
@@ -2047,18 +2066,30 @@ impl X64FunctionCode {
                 Location::Imm32(align - 1),
                 Location::GPR(tmp_aligncheck),
             );
-            Self::mark_range_with_exception_code(
-                a,
-                etable,
-                ExceptionCode::MemoryOutOfBounds,
-                |a| a.emit_conditional_trap(Condition::NotEqual),
-            );
+            match exception_table {
+                Some(etable) => {
+                    Self::mark_range_with_exception_code(
+                        a,
+                        etable,
+                        ExceptionCode::MemoryOutOfBounds,
+                        |a| a.emit_conditional_trap(Condition::NotEqual),
+                    );
+                }
+                None => { a.emit_conditional_trap(Condition::NotEqual); }
+            };
+
+
             m.release_temp_gpr(tmp_aligncheck);
         }
 
-        Self::mark_range_with_exception_code(a, etable, ExceptionCode::MemoryOutOfBounds, |a| {
-            cb(a, m, tmp_addr)
-        })?;
+        match exception_table {
+            Some(etable) => {
+                Self::mark_range_with_exception_code(a, etable, ExceptionCode::MemoryOutOfBounds, |a| {
+                    cb(a, m, tmp_addr)
+                })?;
+            }
+            None => { cb(a, m, tmp_addr)?; }
+        };
 
         m.release_temp_gpr(tmp_addr);
         Ok(())
@@ -2070,7 +2101,7 @@ impl X64FunctionCode {
         config: &CodegenConfig,
         a: &mut Assembler,
         m: &mut Machine,
-        etable: &mut ExceptionTable,
+        exception_table: &mut Option<ExceptionTable>,
         loc: Location,
         target: Location,
         ret: Location,
@@ -2104,7 +2135,7 @@ impl X64FunctionCode {
             config,
             a,
             m,
-            etable,
+            exception_table,
             target,
             memarg,
             true,
@@ -2179,7 +2210,7 @@ impl X64FunctionCode {
     fn emit_f32_int_conv_check_trap(
         a: &mut Assembler,
         m: &mut Machine,
-        etable: &mut ExceptionTable,
+        exception_table: &mut Option<ExceptionTable>,
         reg: XMM,
         lower_bound: f32,
         upper_bound: f32,
@@ -2189,9 +2220,14 @@ impl X64FunctionCode {
 
         Self::emit_f32_int_conv_check(a, m, reg, lower_bound, upper_bound, trap, trap, trap, end);
         a.emit_label(trap);
-        etable
-            .offset_to_code
-            .insert(a.get_offset().0, ExceptionCode::IllegalArithmetic);
+
+        match exception_table {
+            Some(etable) => { etable
+                                .offset_to_code
+                                .insert(a.get_offset().0, ExceptionCode::IllegalArithmetic); }
+            None => {}
+        };
+
         a.emit_ud2();
         a.emit_label(end);
     }
@@ -2307,7 +2343,7 @@ impl X64FunctionCode {
     fn emit_f64_int_conv_check_trap(
         a: &mut Assembler,
         m: &mut Machine,
-        etable: &mut ExceptionTable,
+        exception_table: &mut Option<ExceptionTable>,
         reg: XMM,
         lower_bound: f64,
         upper_bound: f64,
@@ -2317,9 +2353,14 @@ impl X64FunctionCode {
 
         Self::emit_f64_int_conv_check(a, m, reg, lower_bound, upper_bound, trap, trap, trap, end);
         a.emit_label(trap);
-        etable
-            .offset_to_code
-            .insert(a.get_offset().0, ExceptionCode::IllegalArithmetic);
+
+        match exception_table {
+            Some(etable) => { etable
+                                .offset_to_code
+                                .insert(a.get_offset().0, ExceptionCode::IllegalArithmetic); }
+            None => {}
+        };
+
         a.emit_ud2();
         a.emit_label(end);
     }
@@ -2444,12 +2485,17 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                 ),
                 Location::GPR(GPR::RSP),
             );
-            Self::mark_range_with_exception_code(
-                a,
-                self.exception_table.as_mut().unwrap(),
-                ExceptionCode::MemoryOutOfBounds,
-                |a| a.emit_conditional_trap(Condition::Below),
-            );
+            match &mut self.exception_table {
+                Some(etable) => {
+                    Self::mark_range_with_exception_code(
+                        a,
+                        etable,
+                        ExceptionCode::MemoryOutOfBounds,
+                        |a| a.emit_conditional_trap(Condition::Below),
+                    );
+                }
+                None => { a.emit_conditional_trap(Condition::Below); }
+            };
         }
 
         self.locals = self
@@ -2880,7 +2926,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                 Self::emit_relaxed_xdiv(
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     Assembler::emit_div,
                     Size::S32,
                     loc_b,
@@ -2906,7 +2952,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                 Self::emit_relaxed_xdiv(
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     Assembler::emit_idiv,
                     Size::S32,
                     loc_b,
@@ -2932,7 +2978,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                 Self::emit_relaxed_xdiv(
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     Assembler::emit_div,
                     Size::S32,
                     loc_b,
@@ -2984,7 +3030,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                 Self::emit_relaxed_xdiv(
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     Assembler::emit_idiv,
                     Size::S32,
                     loc_b,
@@ -3283,7 +3329,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                 Self::emit_relaxed_xdiv(
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     Assembler::emit_div,
                     Size::S64,
                     loc_b,
@@ -3309,7 +3355,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                 Self::emit_relaxed_xdiv(
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     Assembler::emit_idiv,
                     Size::S64,
                     loc_b,
@@ -3335,7 +3381,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                 Self::emit_relaxed_xdiv(
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     Assembler::emit_div,
                     Size::S64,
                     loc_b,
@@ -3395,7 +3441,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                 Self::emit_relaxed_xdiv(
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     Assembler::emit_idiv,
                     Size::S64,
                     loc_b,
@@ -4848,7 +4894,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     Self::emit_f32_int_conv_check_trap(
                         a,
                         &mut self.machine,
-                        self.exception_table.as_mut().unwrap(),
+                        &mut self.exception_table,
                         tmp_in,
                         GEF32_LT_U32_MIN,
                         LEF32_GT_U32_MAX,
@@ -4960,7 +5006,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     Self::emit_f32_int_conv_check_trap(
                         a,
                         &mut self.machine,
-                        self.exception_table.as_mut().unwrap(),
+                        &mut self.exception_table,
                         tmp_in,
                         GEF32_LT_I32_MIN,
                         LEF32_GT_I32_MAX,
@@ -5078,7 +5124,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     Self::emit_f32_int_conv_check_trap(
                         a,
                         &mut self.machine,
-                        self.exception_table.as_mut().unwrap(),
+                        &mut self.exception_table,
                         tmp_in,
                         GEF32_LT_I64_MIN,
                         LEF32_GT_I64_MAX,
@@ -5196,7 +5242,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     Self::emit_f32_int_conv_check_trap(
                         a,
                         &mut self.machine,
-                        self.exception_table.as_mut().unwrap(),
+                        &mut self.exception_table,
                         tmp_in,
                         GEF32_LT_U64_MIN,
                         LEF32_GT_U64_MAX,
@@ -5357,7 +5403,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     Self::emit_f64_int_conv_check_trap(
                         a,
                         &mut self.machine,
-                        self.exception_table.as_mut().unwrap(),
+                        &mut self.exception_table,
                         tmp_in,
                         GEF64_LT_U32_MIN,
                         LEF64_GT_U32_MAX,
@@ -5475,7 +5521,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     Self::emit_f64_int_conv_check_trap(
                         a,
                         &mut self.machine,
-                        self.exception_table.as_mut().unwrap(),
+                        &mut self.exception_table,
                         real_in,
                         GEF64_LT_I32_MIN,
                         LEF64_GT_I32_MAX,
@@ -5599,7 +5645,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     Self::emit_f64_int_conv_check_trap(
                         a,
                         &mut self.machine,
-                        self.exception_table.as_mut().unwrap(),
+                        &mut self.exception_table,
                         tmp_in,
                         GEF64_LT_I64_MIN,
                         LEF64_GT_I64_MAX,
@@ -5718,7 +5764,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     Self::emit_f64_int_conv_check_trap(
                         a,
                         &mut self.machine,
-                        self.exception_table.as_mut().unwrap(),
+                        &mut self.exception_table,
                         tmp_in,
                         GEF64_LT_U64_MIN,
                         LEF64_GT_U64_MAX,
@@ -6318,12 +6364,19 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     Location::GPR(table_base),
                 );
                 a.emit_cmp(Size::S32, func_index, Location::GPR(table_count));
-                Self::mark_range_with_exception_code(
-                    a,
-                    self.exception_table.as_mut().unwrap(),
-                    ExceptionCode::CallIndirectOOB,
-                    |a| a.emit_conditional_trap(Condition::BelowEqual),
-                );
+
+                match &mut self.exception_table {
+                    Some(etable) => {
+                        Self::mark_range_with_exception_code(
+                            a,
+                            etable,
+                            ExceptionCode::CallIndirectOOB,
+                            |a| a.emit_conditional_trap(Condition::BelowEqual),
+                        );
+                    }
+                    None => { a.emit_conditional_trap(Condition::BelowEqual); }
+                };
+
                 a.emit_mov(Size::S32, func_index, Location::GPR(table_count));
                 a.emit_imul_imm32_gpr64(vm::Anyfunc::size() as u32, table_count);
                 a.emit_add(
@@ -6349,12 +6402,17 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     Location::GPR(sigidx),
                     Location::Memory(table_count, (vm::Anyfunc::offset_sig_id() as usize) as i32),
                 );
-                Self::mark_range_with_exception_code(
-                    a,
-                    self.exception_table.as_mut().unwrap(),
-                    ExceptionCode::IncorrectCallIndirectSignature,
-                    |a| a.emit_conditional_trap(Condition::NotEqual),
-                );
+                match &mut self.exception_table {
+                    Some(etable) => {
+                        Self::mark_range_with_exception_code(
+                            a,
+                            etable,
+                            ExceptionCode::IncorrectCallIndirectSignature,
+                            |a| a.emit_conditional_trap(Condition::NotEqual),
+                        );
+                    }
+                    None => { a.emit_conditional_trap(Condition::NotEqual); }
+                }
 
                 self.machine.release_temp_gpr(sigidx);
                 self.machine.release_temp_gpr(table_count);
@@ -6707,7 +6765,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     false,
@@ -6740,7 +6798,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     false,
@@ -6773,7 +6831,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     false,
@@ -6807,7 +6865,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     false,
@@ -6841,7 +6899,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     false,
@@ -6875,7 +6933,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     false,
@@ -6905,7 +6963,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target_addr,
                     memarg,
                     false,
@@ -6934,7 +6992,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target_addr,
                     memarg,
                     false,
@@ -6963,7 +7021,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target_addr,
                     memarg,
                     false,
@@ -6992,7 +7050,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target_addr,
                     memarg,
                     false,
@@ -7025,7 +7083,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     false,
@@ -7058,7 +7116,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     false,
@@ -7091,7 +7149,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     false,
@@ -7125,7 +7183,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     false,
@@ -7159,7 +7217,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     false,
@@ -7193,7 +7251,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     false,
@@ -7227,7 +7285,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     false,
@@ -7275,7 +7333,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     false,
@@ -7305,7 +7363,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target_addr,
                     memarg,
                     false,
@@ -7334,7 +7392,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target_addr,
                     memarg,
                     false,
@@ -7363,7 +7421,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target_addr,
                     memarg,
                     false,
@@ -7392,7 +7450,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target_addr,
                     memarg,
                     false,
@@ -7421,7 +7479,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target_addr,
                     memarg,
                     false,
@@ -7674,7 +7732,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     true,
@@ -7707,7 +7765,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     true,
@@ -7741,7 +7799,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     true,
@@ -7771,7 +7829,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target_addr,
                     memarg,
                     true,
@@ -7800,7 +7858,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target_addr,
                     memarg,
                     true,
@@ -7829,7 +7887,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target_addr,
                     memarg,
                     true,
@@ -7862,7 +7920,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     true,
@@ -7895,7 +7953,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     true,
@@ -7929,7 +7987,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     true,
@@ -7963,7 +8021,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     true,
@@ -8007,7 +8065,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target_addr,
                     memarg,
                     true,
@@ -8036,7 +8094,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target_addr,
                     memarg,
                     true,
@@ -8065,7 +8123,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target_addr,
                     memarg,
                     true,
@@ -8094,7 +8152,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target_addr,
                     memarg,
                     true,
@@ -8131,7 +8189,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     true,
@@ -8167,7 +8225,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     true,
@@ -8203,7 +8261,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     true,
@@ -8235,7 +8293,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     true,
@@ -8271,7 +8329,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     true,
@@ -8303,7 +8361,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     true,
@@ -8339,7 +8397,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     true,
@@ -8376,7 +8434,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     true,
@@ -8413,7 +8471,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     true,
@@ -8450,7 +8508,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     true,
@@ -8483,7 +8541,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     true,
@@ -8520,7 +8578,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     true,
@@ -8553,7 +8611,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     true,
@@ -8590,7 +8648,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     true,
@@ -8624,7 +8682,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     loc,
                     target,
                     ret,
@@ -8654,7 +8712,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     loc,
                     target,
                     ret,
@@ -8684,7 +8742,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     loc,
                     target,
                     ret,
@@ -8714,7 +8772,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     loc,
                     target,
                     ret,
@@ -8744,7 +8802,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     loc,
                     target,
                     ret,
@@ -8774,7 +8832,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     loc,
                     target,
                     ret,
@@ -8804,7 +8862,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     loc,
                     target,
                     ret,
@@ -8834,7 +8892,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     loc,
                     target,
                     ret,
@@ -8864,7 +8922,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     loc,
                     target,
                     ret,
@@ -8894,7 +8952,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     loc,
                     target,
                     ret,
@@ -8924,7 +8982,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     loc,
                     target,
                     ret,
@@ -8954,7 +9012,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     loc,
                     target,
                     ret,
@@ -8984,7 +9042,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     loc,
                     target,
                     ret,
@@ -9014,7 +9072,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     loc,
                     target,
                     ret,
@@ -9044,7 +9102,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     loc,
                     target,
                     ret,
@@ -9074,7 +9132,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     loc,
                     target,
                     ret,
@@ -9104,7 +9162,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     loc,
                     target,
                     ret,
@@ -9134,7 +9192,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     loc,
                     target,
                     ret,
@@ -9164,7 +9222,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     loc,
                     target,
                     ret,
@@ -9194,7 +9252,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     loc,
                     target,
                     ret,
@@ -9224,7 +9282,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     loc,
                     target,
                     ret,
@@ -9256,7 +9314,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     true,
@@ -9288,7 +9346,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     true,
@@ -9320,7 +9378,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     true,
@@ -9352,7 +9410,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     true,
@@ -9384,7 +9442,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     true,
@@ -9416,7 +9474,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     true,
@@ -9448,7 +9506,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     true,
@@ -9494,7 +9552,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     true,
@@ -9545,7 +9603,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     true,
@@ -9596,7 +9654,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     true,
@@ -9647,7 +9705,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     true,
@@ -9698,7 +9756,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     true,
@@ -9749,7 +9807,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     true,
@@ -9800,7 +9858,7 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                     &self.config,
                     a,
                     &mut self.machine,
-                    self.exception_table.as_mut().unwrap(),
+                    &mut self.exception_table,
                     target,
                     memarg,
                     true,
