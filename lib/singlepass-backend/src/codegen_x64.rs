@@ -702,7 +702,7 @@ impl ModuleCodeGenerator<X64FunctionCode, X64ExecutionContext, CodegenError>
                     self.assembler.take().unwrap(),
                     self.function_labels.take().unwrap(),
                     HashMap::new(),
-                    None,
+                    None, // Some(ExceptionTable::new()),
                 ),
             };
 
@@ -767,7 +767,7 @@ impl ModuleCodeGenerator<X64FunctionCode, X64ExecutionContext, CodegenError>
                     self.assembler.take().unwrap(),
                     self.function_labels.take().unwrap(),
                     HashMap::new(),
-                    None,
+                    None, // Some(ExceptionTable::new()),
                 ),
             };
 
