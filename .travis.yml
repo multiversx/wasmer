@@ -1,12 +1,14 @@
 os:
-  #- linux
+  - linux
   - osx
 arch:
   - amd64
-  #- arm64
+  - arm64
 osx_image: xcode11.3
 
 language: rust
+before_install:
+- if [[ $TRAVIS_OS_NAME == linux ]]; then sudo apt-get install -y patchelf; fi
 install: travis_retry
 rust:
   - nightly-2019-12-19
@@ -36,12 +38,14 @@ script:
   - if [[ "$TRAVIS_OS_NAME" == linux && "$TRAVIS_CPU_ARCH" == amd64 ]];
     then
       mv ./target/release/libwasmer_runtime_c_api.so ./artifacts/libwasmer_linux_amd64.so;
+      patchelf --set-soname libwasmer_linux_amd64.so ./artifacts/libwasmer_linux_amd64.so;
     fi
   - if [[ "$TRAVIS_OS_NAME" == linux && "$TRAVIS_CPU_ARCH" == arm64 ]];
     then
       mv ./target/release/libwasmer_runtime_c_api.so ./artifacts/libwasmer_linux_arm64.so;
+      patchelf --set-soname libwasmer_linux_arm64.so ./artifacts/libwasmer_linux_arm64.so;
     fi
-
+    
 deploy:
   provider: releases
   file_glob: true
