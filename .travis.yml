@@ -1,9 +1,9 @@
 os:
-  - linux
+  #- linux
   - osx
 arch:
   - amd64
-  - arm64
+  #- arm64
 osx_image: xcode11.3
 
 language: rust
@@ -13,14 +13,14 @@ rust:
 
 cache:
   directories:
-    - /home/travis/.sccache/
-    - /home/travis/.cargo/bin/
+    - $HOME/.sccache/
+    - $HOME/.cargo/bin/
 
 script:
-  - test -f /home/travis/.cargo/bin/sccache || travis_retry cargo install sccache
-  - export RUSTC_WRAPPER=/home/travis/.cargo/bin/sccache
-  - mkdir -p /home/travis/.sccache/
-  - export SCCACHE_DIR="/home/travis/.sccache/"
+  - test -f $HOME/.cargo/bin/sccache || travis_retry cargo install sccache
+  - export RUSTC_WRAPPER=$HOME/.cargo/bin/sccache
+  - mkdir -p $HOME/.sccache/
+  - export SCCACHE_DIR="$HOME/.sccache/"
   - SCCACHE_ERROR_LOG=`pwd`/sccache.log RUST_LOG=debug $RUSTC_WRAPPER --start-server
   - $RUSTC_WRAPPER -s
 
@@ -31,6 +31,7 @@ script:
   - if [[ "$TRAVIS_OS_NAME" == osx ]];
     then
       mv ./target/release/libwasmer_runtime_c_api.dylib ./artifacts/libwasmer_darwin_amd64.dylib;
+      install_name_tool -id @executable_path/libwasmer_darwin_amd64.dylib ./artifacts/libwasmer_darwin_amd64.dylib;
     fi
   - if [[ "$TRAVIS_OS_NAME" == linux && "$TRAVIS_CPU_ARCH" == amd64 ]];
     then
