@@ -200,6 +200,8 @@ pub struct wasmer_compilation_options_t;
 pub struct CompilationOptions {
     pub gas_limit: u64,
     pub opcode_trace: bool,
+    pub metering: bool,
+    pub runtime_breakpoints: bool,
 }
 
 #[allow(clippy::cast_ptr_alignment)]
@@ -247,14 +249,20 @@ pub unsafe extern "C" fn wasmer_instantiate_with_options(
 unsafe fn prepare_middleware_chain_generator(options: &CompilationOptions) -> impl Fn() -> MiddlewareChain {
     let gas_limit = options.gas_limit;
     let opcode_trace = options.opcode_trace;
+    let metering = options.metering;
+    let runtime_breakpoints = options.runtime_breakpoints;
 
     let chain_generator = move || {
         let mut chain = MiddlewareChain::new();
 
-        #[cfg(feature = "metering")]
-        chain.push(metering::Metering::new(gas_limit, &OPCODE_COSTS));
+        if metering {
+            #[cfg(feature = "metering")]
+            chain.push(metering::Metering::new(gas_limit, &OPCODE_COSTS));
+        }
 
-        chain.push(runtime_breakpoints::RuntimeBreakpointHandler::new());
+        if runtime_breakpoints {
+            chain.push(runtime_breakpoints::RuntimeBreakpointHandler::new());
+        }
 
         if opcode_trace {
             chain.push(opcode_trace::OpcodeTracer::new());
