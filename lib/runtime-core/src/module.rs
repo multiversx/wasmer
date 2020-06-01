@@ -306,6 +306,15 @@ impl<K: TypedIndex> StringTable<K> {
 
         &self.buffer[offset..offset + length]
     }
+
+    /// Gets all the strings in the StringTable as a Vec.
+    pub fn to_vec(&self) -> Vec<&str> {
+        self.table
+            .values()
+            .map(|(offset, length)|
+                 &self.buffer[(*offset as usize)..(*offset as usize) + (*length as usize)])
+            .collect()
+    }
 }
 
 /// A type-safe handle referring to a module namespace.

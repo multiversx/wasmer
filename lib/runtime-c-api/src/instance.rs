@@ -447,8 +447,15 @@ pub unsafe extern "C" fn wasmer_instance_call(
 
     let last_opcode_location = wasmer_middleware_common::opcode_trace::get_opcodetracer_last_location(instance);
     if last_opcode_location > 0 {
-        println!("wasmer_instance_call MODULE_IMPORTS {:#?}\n", instance.module.info.imported_functions);
-        println!("wasmer_instance_call MODULE_EXPORTS {:#?}\n", instance.module.info.exports);
+        let imported_functions = instance.module.info.name_table.to_vec();
+        for i in 0..imported_functions.len() {
+            println!("Import {}\t{}", i, imported_functions[i]);
+        }
+
+        for (k, v) in instance.module.info.exports.iter() {
+            println!("Export {:?}\t{}", v, k);
+        }
+
         println!("wasmer_instance_call OPCODE_LAST_LOCATION = {}", last_opcode_location);
     }
 
