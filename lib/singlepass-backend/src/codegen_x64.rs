@@ -7499,11 +7499,12 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
             }
             Operator::Unreachable => {
                 Self::mark_trappable(a, &self.machine, &mut self.fsm, &mut self.control_stack);
-                self.exception_table
-                    .as_mut()
-                    .unwrap()
-                    .offset_to_code
-                    .insert(a.get_offset().0, ExceptionCode::Unreachable);
+                match &mut self.exception_table {
+                    Some(etable) => {
+                        etable.offset_to_code.insert(a.get_offset().0, ExceptionCode::Unreachable);
+                    }
+                    None => {}
+                };
                 a.emit_ud2();
                 self.unreachable_depth = 1;
             }
