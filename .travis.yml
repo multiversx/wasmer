@@ -62,3 +62,4 @@ addons:
 branches:
   only:
     - master
+    - development
