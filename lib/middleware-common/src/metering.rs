@@ -3,13 +3,14 @@ use wasmer_runtime_core::{
     module::ModuleInfo,
     vm::{Ctx, InternalField},
     wasmparser::{Operator, Type as WpType, TypeOrFuncType as WpTypeOrFuncType},
-    error::{RuntimeError},
     Instance,
 };
 
 use crate::metering_costs::{get_opcode_index};
+use crate::runtime_breakpoints::{push_runtime_breakpoint};
 
-static INTERNAL_FIELD: InternalField = InternalField::allocate();
+static FIELD_USED_POINTS: InternalField = InternalField::allocate();
+pub const BREAKPOINT_VALUE__OUT_OF_GAS: u64 = 4;
 
 /// Metering is a compiler middleware that calculates the cost of WebAssembly instructions at compile
 /// time and will count the cost of executed instructions at runtime. Within the Metering functionality,
@@ -73,14 +74,14 @@ impl<'q> FunctionMiddleware for Metering<'q> {
                     | Operator::CallIndirect { .. }
                     | Operator::Return => {
                         sink.push(Event::Internal(InternalEvent::GetInternal(
-                            INTERNAL_FIELD.index() as _,
+                            FIELD_USED_POINTS.index() as _,
                         )));
                         sink.push(Event::WasmOwned(Operator::I64Const {
                             value: self.current_block as i64,
                         }));
                         sink.push(Event::WasmOwned(Operator::I64Add));
                         sink.push(Event::Internal(InternalEvent::SetInternal(
-                            INTERNAL_FIELD.index() as _,
+                            FIELD_USED_POINTS.index() as _,
                         )));
                         self.current_block = 0;
                     }
@@ -93,7 +94,7 @@ impl<'q> FunctionMiddleware for Metering<'q> {
                     | Operator::Call { .. }
                     | Operator::CallIndirect { .. } => {
                         sink.push(Event::Internal(InternalEvent::GetInternal(
-                            INTERNAL_FIELD.index() as _,
+                            FIELD_USED_POINTS.index() as _,
                         )));
                         sink.push(Event::WasmOwned(Operator::I64Const {
                             value: self.limit as i64,
@@ -102,9 +103,7 @@ impl<'q> FunctionMiddleware for Metering<'q> {
                         sink.push(Event::WasmOwned(Operator::If {
                             ty: WpTypeOrFuncType::Type(WpType::EmptyBlockType),
                         }));
-                        sink.push(Event::Internal(InternalEvent::Breakpoint(Box::new(|_| {
-                            Err(Box::new(RuntimeError(Box::new("execution limit exceeded".to_string()))))
-                        }))));
+                        push_runtime_breakpoint(sink, BREAKPOINT_VALUE__OUT_OF_GAS);
                         sink.push(Event::WasmOwned(Operator::End));
                     }
                     _ => {}
@@ -119,20 +118,20 @@ impl<'q> FunctionMiddleware for Metering<'q> {
 
 /// Returns the number of points used by an Instance.
 pub fn get_points_used(instance: &Instance) -> u64 {
-    instance.get_internal(&INTERNAL_FIELD)
+    instance.get_internal(&FIELD_USED_POINTS)
 }
 
 /// Sets the number of points used by an Instance.
 pub fn set_points_used(instance: &mut Instance, value: u64) {
-    instance.set_internal(&INTERNAL_FIELD, value);
+    instance.set_internal(&FIELD_USED_POINTS, value);
 }
 
 /// Returns the number of points used in a Ctx.
 pub fn get_points_used_ctx(ctx: &Ctx) -> u64 {
-    ctx.get_internal(&INTERNAL_FIELD)
+    ctx.get_internal(&FIELD_USED_POINTS)
 }
 
 /// Sets the number of points used in a Ctx.
 pub fn set_points_used_ctx(ctx: &mut Ctx, value: u64) {
-    ctx.set_internal(&INTERNAL_FIELD, value);
+    ctx.set_internal(&FIELD_USED_POINTS, value);
 }

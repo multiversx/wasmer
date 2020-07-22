@@ -7,8 +7,9 @@ use wasmer_runtime_core::{
     Instance,
 };
 
-static RUNTIME_BREAKPOINT_VALUE: InternalField = InternalField::allocate();
+pub static FIELD_RUNTIME_BREAKPOINT_VALUE: InternalField = InternalField::allocate();
 pub const BREAKPOINT_VALUE__NO_BREAKPOINT: u64 = 0;
+
 
 #[derive(Copy, Clone, Debug)]
 pub struct RuntimeBreakpointReachedError;
@@ -49,7 +50,7 @@ impl FunctionMiddleware for RuntimeBreakpointHandler {
 
         if must_add_breakpoint {
             sink.push(Event::Internal(InternalEvent::GetInternal(
-                RUNTIME_BREAKPOINT_VALUE.index() as _,
+                FIELD_RUNTIME_BREAKPOINT_VALUE.index() as _,
             )));
             sink.push(Event::WasmOwned(Operator::I64Const {
                 value: BREAKPOINT_VALUE__NO_BREAKPOINT as i64,
@@ -68,10 +69,22 @@ impl FunctionMiddleware for RuntimeBreakpointHandler {
     }
 }
 
+pub fn push_runtime_breakpoint(sink: &mut EventSink, value: u64) {
+    sink.push(Event::WasmOwned(Operator::I64Const {
+        value: value as i64,
+    }));
+    sink.push(Event::Internal(InternalEvent::SetInternal(
+        FIELD_RUNTIME_BREAKPOINT_VALUE.index() as _,
+    )));
+    sink.push(Event::Internal(InternalEvent::Breakpoint(Box::new(|_| {
+        Err(Box::new(RuntimeError(Box::new("breakpoint reached".to_string()))))
+    }))));
+}
+
 pub fn set_runtime_breakpoint_value(instance: &mut Instance, value: u64) {
-    instance.set_internal(&RUNTIME_BREAKPOINT_VALUE, value);
+    instance.set_internal(&FIELD_RUNTIME_BREAKPOINT_VALUE, value);
 }
 
 pub fn get_runtime_breakpoint_value(instance: &mut Instance) -> u64 {
-    instance.get_internal(&RUNTIME_BREAKPOINT_VALUE)
+    instance.get_internal(&FIELD_RUNTIME_BREAKPOINT_VALUE)
 }
