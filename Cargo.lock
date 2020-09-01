@@ -1870,7 +1870,7 @@ dependencies = [
  "wasmer-clif-fork-wasm",
  "wasmer-runtime-core",
  "wasmer-win-exception-handler",
- "wasmparser 0.51.4 (git+https://github.com/ElrondNetwork/wasmparser.rs)",
+ "wasmparser 0.51.4",
  "winapi",
 ]
 
@@ -1967,7 +1967,7 @@ dependencies = [
  "smallvec 0.6.13",
  "wabt",
  "wasmer-runtime-core",
- "wasmparser 0.51.4 (git+https://github.com/ElrondNetwork/wasmparser.rs)",
+ "wasmparser 0.51.4",
  "winapi",
 ]
 
@@ -2058,7 +2058,7 @@ dependencies = [
  "smallvec 0.6.13",
  "target-lexicon 0.9.0",
  "wasm-debug",
- "wasmparser 0.51.4 (git+https://github.com/ElrondNetwork/wasmparser.rs)",
+ "wasmparser 0.51.4",
  "winapi",
 ]
 
@@ -2088,7 +2088,7 @@ dependencies = [
  "serde_derive",
  "smallvec 0.6.13",
  "wasmer-runtime-core",
- "wasmparser 0.51.4 (git+https://github.com/ElrondNetwork/wasmparser.rs)",
+ "wasmparser 0.51.4",
 ]
 
 [[package]]
@@ -2165,7 +2165,6 @@ checksum = "c702914acda5feeeffbc29e4d953e5b9ce79d8b98da4dbf18a77086e116c5470"
 [[package]]
 name = "wasmparser"
 version = "0.51.4"
-source = "git+https://github.com/ElrondNetwork/wasmparser.rs#57f8cec1a47850cb804776cc858e83300576fea2"
 
 [[package]]
 name = "wasmparser"
