@@ -123,7 +123,7 @@ impl<'q> FunctionMiddleware for Metering<'q> {
     fn feed_local(
         &mut self,
         _ty: WpType,
-        n: usize,
+        _n: usize,
         _loc: u32,
     ) -> Result<(), Self::Error>{
         let cost_index = get_local_allocate_cost_index();
