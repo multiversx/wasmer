@@ -19,7 +19,7 @@ byteorder = "1.3"
 nix = "0.15"
 libc = "0.2.60"
 smallvec = "0.6"
-wasmparser = { path = "../../../wasmparser.rs" }
+wasmparser = { git = "https://github.com/ElrondNetwork/wasmparser.rs" }
 bincode = "1.2"
 serde = "1.0"
 serde_derive = "1.0"

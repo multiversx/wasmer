@@ -11,7 +11,7 @@ readme = "README.md"
 
 [dependencies]
 wasmer-runtime-core = { path = "../runtime-core", version = "0.15.0" }
-wasmparser = { path = "../../../wasmparser.rs" }
+wasmparser = { git = "https://github.com/ElrondNetwork/wasmparser.rs" }
 smallvec = "0.6"
 goblin = "0.0.24"
 libc = "0.2.60"
