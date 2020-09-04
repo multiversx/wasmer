@@ -277,6 +277,8 @@ pub fn read_module<
                             for &(count, ty) in locals.iter() {
                                 fcg.feed_local(ty, count as usize, cur_pos)
                                     .map_err(|x| LoadError::Codegen(format!("{:?}", x)))?;
+                                middlewares.run_func_local(ty, count as usize, cur_pos)
+                                    .map_err(|x| LoadError::Codegen(format!("{:?}", x)))?;
                             }
                         }
                         ParserState::CodeOperator(_) => {

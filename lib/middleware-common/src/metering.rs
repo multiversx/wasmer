@@ -6,8 +6,8 @@ use wasmer_runtime_core::{
     Instance,
 };
 
-use crate::metering_costs::{get_opcode_index};
-use crate::runtime_breakpoints::{push_runtime_breakpoint};
+use crate::metering_costs::{get_opcode_index, get_local_allocate_cost_index};
+use crate::runtime_breakpoints::push_runtime_breakpoint;
 
 static FIELD_USED_POINTS: InternalField = InternalField::allocate();
 pub const BREAKPOINT_VALUE__OUT_OF_GAS: u64 = 4;
@@ -28,6 +28,7 @@ pub const BREAKPOINT_VALUE__OUT_OF_GAS: u64 = 4;
 pub struct Metering<'a> {
     limit: u64,
     current_block: u64,
+    func_locals_costs: u32,
     opcode_costs: &'a [u32],
 }
 
@@ -36,7 +37,8 @@ impl<'a> Metering<'a> {
         Metering {
             limit,
             current_block: 0,
-            opcode_costs: opcode_costs,
+            func_locals_costs: 0,
+            opcode_costs,
         }
     }
 }
@@ -46,6 +48,7 @@ pub struct ExecutionLimitExceededError;
 
 impl<'q> FunctionMiddleware for Metering<'q> {
     type Error = String;
+
     fn feed_event<'a, 'b: 'a>(
         &mut self,
         op: Event<'a, 'b>,
@@ -55,7 +58,7 @@ impl<'q> FunctionMiddleware for Metering<'q> {
     ) -> Result<(), Self::Error> {
         match op {
             Event::Internal(InternalEvent::FunctionBegin(_)) => {
-                self.current_block = 0;
+                self.current_block = self.func_locals_costs as u64;
             }
             Event::Wasm(&ref op) | Event::WasmOwned(ref op) => {
                 let opcode_index = get_opcode_index(op);
@@ -111,7 +114,21 @@ impl<'q> FunctionMiddleware for Metering<'q> {
             }
             _ => {}
         }
+
         sink.push(op);
+
+        Ok(())
+    }
+
+    fn feed_local(
+        &mut self,
+        _ty: WpType,
+        n: usize,
+        _loc: u32,
+    ) -> Result<(), Self::Error>{
+        let cost_index = get_local_allocate_cost_index();
+        let cost = self.opcode_costs[cost_index];
+        self.func_locals_costs += cost;
         Ok(())
     }
 }

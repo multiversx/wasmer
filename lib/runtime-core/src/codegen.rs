@@ -424,6 +424,21 @@ impl MiddlewareChain {
 
         Ok(())
     }
+
+    /// Notify this chain about a given local variable.
+    pub(crate) fn run_func_local(
+        &mut self,
+        ty: WpType,
+        n: usize,
+        loc: u32,
+    ) -> Result<(), String> {
+        for m in &mut self.chain {
+            m.feed_local(ty, n, loc)
+                .map_err(|x| format!("{:?}", x))?;
+        }
+
+        Ok(())
+    }
 }
 
 /// A trait that represents the signature required to implement middleware for a function.
@@ -438,6 +453,16 @@ pub trait FunctionMiddleware {
         sink: &mut EventSink<'a, 'b>,
         source_loc: u32,
     ) -> Result<(), Self::Error>;
+
+    /// Notify the middleware about a given local variable.
+    fn feed_local(
+        &mut self,
+        _ty: WpType,
+        _n: usize,
+        _source_loc: u32,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
 }
 
 pub(crate) trait GenericFunctionMiddleware {
@@ -447,6 +472,13 @@ pub(crate) trait GenericFunctionMiddleware {
         module_info: &ModuleInfo,
         sink: &mut EventSink<'a, 'b>,
         source_loc: u32,
+    ) -> Result<(), String>;
+
+    fn feed_local(
+        &mut self,
+        _ty: WpType,
+        _n: usize,
+        _source_loc: u32,
     ) -> Result<(), String>;
 }
 
@@ -459,6 +491,16 @@ impl<E: Debug, T: FunctionMiddleware<Error = E>> GenericFunctionMiddleware for T
         source_loc: u32,
     ) -> Result<(), String> {
         <Self as FunctionMiddleware>::feed_event(self, op, module_info, sink, source_loc)
+            .map_err(|x| format!("{:?}", x))
+    }
+
+    fn feed_local(
+        &mut self,
+        ty: WpType,
+        n: usize,
+        source_loc: u32,
+    ) -> Result<(), String> {
+        <Self as FunctionMiddleware>::feed_local(self, ty, n, source_loc)
             .map_err(|x| format!("{:?}", x))
     }
 }
