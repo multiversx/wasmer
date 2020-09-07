@@ -27,15 +27,17 @@ pub const BREAKPOINT_VALUE__OUT_OF_GAS: u64 = 4;
 
 pub struct Metering<'a> {
     limit: u64,
+    unmetered_locals: usize,
     current_block: u64,
     func_locals_costs: u32,
     opcode_costs: &'a [u32],
 }
 
 impl<'a> Metering<'a> {
-    pub fn new(limit: u64, opcode_costs: &'a [u32]) -> Metering<'a> {
+    pub fn new(limit: u64, opcode_costs: &'a [u32], unmetered_locals: usize) -> Metering<'a> {
         Metering {
             limit,
+            unmetered_locals,
             current_block: 0,
             func_locals_costs: 0,
             opcode_costs,
@@ -123,12 +125,15 @@ impl<'q> FunctionMiddleware for Metering<'q> {
     fn feed_local(
         &mut self,
         _ty: WpType,
-        _n: usize,
+        n: usize,
         _loc: u32,
     ) -> Result<(), Self::Error>{
-        let cost_index = get_local_allocate_cost_index();
-        let cost = self.opcode_costs[cost_index];
-        self.func_locals_costs += cost;
+        println!("current local: {}", n);
+        if n >= self.unmetered_locals {
+            let cost_index = get_local_allocate_cost_index();
+            let cost = self.opcode_costs[cost_index];
+            self.func_locals_costs += cost;
+        }
         Ok(())
     }
 }

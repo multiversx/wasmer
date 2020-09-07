@@ -199,6 +199,7 @@ pub struct wasmer_compilation_options_t;
 
 pub struct CompilationOptions {
     pub gas_limit: u64,
+    pub unmetered_locals: usize,
     pub opcode_trace: bool,
     pub metering: bool,
     pub runtime_breakpoints: bool,
@@ -246,25 +247,28 @@ pub unsafe extern "C" fn wasmer_instantiate_with_options(
     wasmer_result_t::WASMER_OK
 }
 
-unsafe fn prepare_middleware_chain_generator(options: &CompilationOptions) -> impl Fn() -> MiddlewareChain {
-    let gas_limit = options.gas_limit;
-    let opcode_trace = options.opcode_trace;
-    let metering = options.metering;
-    let runtime_breakpoints = options.runtime_breakpoints;
+unsafe fn prepare_middleware_chain_generator(
+    options: &CompilationOptions
+    ) -> impl Fn() -> MiddlewareChain + '_ {
+    let options = options.clone();
 
     let chain_generator = move || {
         let mut chain = MiddlewareChain::new();
 
-        if metering {
+        if options.metering {
             #[cfg(feature = "metering")]
-            chain.push(metering::Metering::new(gas_limit, &OPCODE_COSTS));
+            chain.push(metering::Metering::new(
+                    options.gas_limit,
+                    &OPCODE_COSTS,
+                    options.unmetered_locals
+                ));
         }
 
-        if runtime_breakpoints {
+        if options.runtime_breakpoints {
             chain.push(runtime_breakpoints::RuntimeBreakpointHandler::new());
         }
 
-        if opcode_trace {
+        if options.opcode_trace {
             chain.push(opcode_trace::OpcodeTracer::new());
         };
 

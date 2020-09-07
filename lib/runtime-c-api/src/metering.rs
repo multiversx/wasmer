@@ -119,7 +119,7 @@ unsafe fn get_metered_compiler(limit: u64) -> impl Compiler {
     let c: StreamingCompiler<MeteredMCG, _, _, _, _> = StreamingCompiler::new(move || {
         let mut chain = MiddlewareChain::new();
 
-        chain.push(metering::Metering::new(limit, &OPCODE_COSTS));
+        chain.push(metering::Metering::new(limit, &OPCODE_COSTS, 0));
         chain.push(runtime_breakpoints::RuntimeBreakpointHandler::new());
 
         chain
