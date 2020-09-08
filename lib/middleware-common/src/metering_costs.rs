@@ -1,6 +1,8 @@
-use wasmer_runtime_core:: {
-    wasmparser::Operator
-};
+use wasmer_runtime_core::wasmparser::Operator;
+
+pub fn get_local_allocate_cost_index() -> usize {
+    447
+}
 
 pub fn get_opcode_index(op: &Operator) -> usize {
     match *op {
