@@ -128,11 +128,13 @@ impl<'q> FunctionMiddleware for Metering<'q> {
         n: usize,
         _loc: u32,
     ) -> Result<(), Self::Error>{
-        println!("current local: {}", n);
         if n >= self.unmetered_locals {
             let cost_index = get_local_allocate_cost_index();
             let cost = self.opcode_costs[cost_index];
-            self.func_locals_costs += cost;
+            // n is already limited by Wasmparser; the following casting and multiplication are
+            // safe from overflowing
+            let n = n as u32;
+            self.func_locals_costs += cost * n;
         }
         Ok(())
     }
