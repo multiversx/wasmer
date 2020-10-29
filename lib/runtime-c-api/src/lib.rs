@@ -103,6 +103,8 @@ pub mod memory;
 #[cfg(feature = "metering")]
 pub mod metering;
 
+pub mod instance_cache;
+
 pub mod runtime_breakpoints;
 
 pub mod module;
