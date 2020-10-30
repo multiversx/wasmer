@@ -67,30 +67,24 @@ pub unsafe extern "C" fn wasmer_instance_from_cache(
     }
 
     let bytes: &[u8] = slice::from_raw_parts_mut(cache_bytes, cache_len as usize);
-    let serialized_cache = Artifact::deserialize(bytes);
 
-    unsafe {
-        wasmer_runtime_core::load_cache_with(serialized_cache, &default_compiler())
-    }
-
-    match serialized_cache {
-        Ok(artifact) => match load_cache_with(artifact, &default_compiler()) {
+    let module = match Artifact::deserialize(bytes) {
+        Ok(serialized_cache) => match wasmer_runtime_core::load_cache_with(serialized_cache, &default_compiler()) {
             Ok(deserialized_module) => {
-                *module = Box::into_raw(Box::new(deserialized_module)) as _;
-                wasmer_result_t::WASMER_OK
+                Box::into_raw(Box::new(deserialized_module)) as _;
             }
             Err(_) => {
                 update_last_error(CApiError {
                     msg: "Failed to compile the serialized module".to_string(),
                 });
-                wasmer_result_t::WASMER_ERROR
+                return wasmer_result_t::WASMER_ERROR;
             }
         },
         Err(_) => {
             update_last_error(CApiError {
                 msg: "Failed to deserialize the module".to_string(),
             });
-            wasmer_result_t::WASMER_ERROR
+            return wasmer_result_t::WASMER_ERROR;
         }
     }
 
