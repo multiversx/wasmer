@@ -3,10 +3,7 @@ use crate::{
     instance::wasmer_instance_t,
     wasmer_result_t,
 };
-// use wasmer_runtime::{
-//     Instance, Module
-// };
-// use wasmer_runtime_core::cache::{Artifact, Error as CacheError};
+use wasmer_runtime_core::cache::{Artifact, Error as CacheError};
 
 
 #[allow(clippy::cast_ptr_alignment)]
@@ -70,8 +67,32 @@ pub unsafe extern "C" fn wasmer_instance_from_cache(
     }
 
     let bytes: &[u8] = slice::from_raw_parts_mut(cache_bytes, cache_len as usize);
+    let serialized_cache = Artifact::deserialize(bytes);
 
+    unsafe {
+        wasmer_runtime_core::load_cache_with(serialized_cache, &default_compiler())
+    }
 
+    match serialized_cache {
+        Ok(artifact) => match load_cache_with(artifact, &default_compiler()) {
+            Ok(deserialized_module) => {
+                *module = Box::into_raw(Box::new(deserialized_module)) as _;
+                wasmer_result_t::WASMER_OK
+            }
+            Err(_) => {
+                update_last_error(CApiError {
+                    msg: "Failed to compile the serialized module".to_string(),
+                });
+                wasmer_result_t::WASMER_ERROR
+            }
+        },
+        Err(_) => {
+            update_last_error(CApiError {
+                msg: "Failed to deserialize the module".to_string(),
+            });
+            wasmer_result_t::WASMER_ERROR
+        }
+    }
 
     let new_module = match result_compilation {
         Ok(module) => module,
