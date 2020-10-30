@@ -1072,7 +1072,8 @@ void wasmer_instance_exports(wasmer_instance_t *instance, wasmer_exports_t **exp
 
 wasmer_result_t wasmer_instance_from_cache(wasmer_instance_t **_instance,
                                            uint8_t *_cache_bytes,
-                                           uint32_t _cache_len);
+                                           uint32_t _cache_len,
+                                           const wasmer_compilation_options_t *options);
 
 uint64_t wasmer_instance_get_points_used(wasmer_instance_t *instance);
 
