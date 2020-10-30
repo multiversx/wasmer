@@ -16,7 +16,7 @@ int main()
 
     wasmer_module_t *module_one = NULL;
     unsigned long long gas_limit = 100;
-    wasmer_result_t compile_result = wasmer_compile_with_gas_metering(&module_one, bytes, len, gas_limit);
+    wasmer_result_t compile_result = wasmer_compile_with_gas_metering(&module_one, bytes, len);
     printf("Compile result: %d\n", compile_result);
     assert(compile_result == WASMER_OK);
 

@@ -85,7 +85,6 @@ pub unsafe extern "C" fn wasmer_compile_with_gas_metering(
     module: *mut *mut wasmer_module_t,
     wasm_bytes: *mut u8,
     wasm_bytes_len: u32,
-    gas_limit: u64,
 ) -> wasmer_result_t {
     if module.is_null() {
         update_last_error(CApiError {
@@ -100,7 +99,7 @@ pub unsafe extern "C" fn wasmer_compile_with_gas_metering(
         return wasmer_result_t::WASMER_ERROR;
     }
 
-    let compiler = get_metered_compiler(gas_limit);
+    let compiler = get_metered_compiler();
 
     let bytes: &[u8] = slice::from_raw_parts_mut(wasm_bytes, wasm_bytes_len as usize);
     let result = wasmer_runtime_core::compile_with(bytes, &compiler);
@@ -118,7 +117,7 @@ pub unsafe extern "C" fn wasmer_compile_with_gas_metering(
 }
 
 #[cfg(feature = "metering")]
-unsafe fn get_metered_compiler(_limit: u64) -> impl Compiler {
+unsafe fn get_metered_compiler() -> impl Compiler {
     use wasmer_runtime_core::codegen::{MiddlewareChain, StreamingCompiler};
 
     #[cfg(feature = "llvm-backend")]
@@ -153,7 +152,6 @@ pub unsafe extern "C" fn wasmer_compile_with_gas_metering(
     module: *mut *mut wasmer_module_t,
     wasm_bytes: *mut u8,
     wasm_bytes_len: u32,
-    _: u64,
 ) -> wasmer_result_t {
     if module.is_null() {
         update_last_error(CApiError {

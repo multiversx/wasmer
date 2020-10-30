@@ -57,10 +57,40 @@ pub unsafe extern "C" fn wasmer_instance_cache(
 #[allow(clippy::cast_ptr_alignment)]
 #[no_mangle]
 pub unsafe extern "C" fn wasmer_instance_from_cache(
-    _instance: *mut *mut wasmer_instance_t,
-    _cache_bytes: *mut u8,
-    _cache_len: u32,
+    instance: *mut *mut wasmer_instance_t,
+    cache_bytes: *mut u8,
+    cache_len: u32,
+    gas_limit: u64,
 ) -> wasmer_result_t {
-    // TODO set points limit
+    if cache_bytes.is_null() {
+        update_last_error(CApiError {
+            msg: "cache bytes ptr is null".to_string(),
+        });
+        return wasmer_result_t::WASMER_ERROR;
+    }
+
+    let bytes: &[u8] = slice::from_raw_parts_mut(cache_bytes, cache_len as usize);
+
+
+
+    let new_module = match result_compilation {
+        Ok(module) => module,
+        Err(_) => {
+            update_last_error(CApiError { msg: "compile error".to_string() });
+            return wasmer_result_t::WASMER_ERROR;
+        }
+    };
+
+    let import_object: &mut ImportObject = &mut *(GLOBAL_IMPORT_OBJECT as *mut ImportObject);
+    let result_instantiation = new_module.instantiate(&import_object);
+    let mut new_instance = match result_instantiation {
+        Ok(instance) => instance,
+        Err(error) => {
+            update_last_error(error);
+            return wasmer_result_t::WASMER_ERROR;
+        }
+    };
+    metering::set_points_limit(&mut new_instance, gas_limit);
+    *instance = Box::into_raw(Box::new(new_instance)) as *mut wasmer_instance_t;
     wasmer_result_t::WASMER_OK
 }
