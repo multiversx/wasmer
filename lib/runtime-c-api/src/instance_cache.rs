@@ -1,9 +1,14 @@
 use crate::{
     error::{update_last_error, CApiError},
-    instance::wasmer_instance_t,
+    instance::{wasmer_instance_t, wasmer_compilation_options_t, CompilationOptions, prepare_middleware_chain_generator, get_compiler},
     wasmer_result_t,
 };
-use wasmer_runtime_core::{cache::Artifact, load_cache_with};
+use wasmer_runtime_core::{cache::Artifact, import::ImportObject};
+use std::slice;
+use crate::import::GLOBAL_IMPORT_OBJECT;
+
+#[cfg(not(feature = "cranelift-backend"))]
+use wasmer_middleware_common::metering;
 
 #[allow(clippy::cast_ptr_alignment)]
 #[no_mangle]
@@ -18,10 +23,10 @@ pub unsafe extern "C" fn wasmer_instance_cache(
         });
         return wasmer_result_t::WASMER_ERROR;
     }
+
     let instance = &mut *(instance as *mut wasmer_runtime::Instance);
     let module = instance.module();
-    let cache_result = module.cache();
-    match cache_result {
+    match module.cache() {
         Err(error) => {
             update_last_error(CApiError {
                 msg: format!("{:?}", error),
@@ -29,8 +34,7 @@ pub unsafe extern "C" fn wasmer_instance_cache(
             return wasmer_result_t::WASMER_ERROR;
         }
         Ok(artifact) => {
-            let serialize_result = artifact.serialize();
-            match serialize_result {
+            match artifact.serialize() {
                 Err(error) => {
                     update_last_error(CApiError {
                         msg: format!("{:?}", error),
@@ -39,8 +43,10 @@ pub unsafe extern "C" fn wasmer_instance_cache(
                 }
                 Ok(bytes_vec) => {
                     if !bytes_vec.is_empty() {
-                        *cache_bytes = bytes_vec.as_ptr();
-                        *cache_len = bytes_vec.len() as u32;
+                        let buf = bytes_vec.into_boxed_slice();
+                        *cache_bytes = buf.as_ptr();
+                        *cache_len = buf.len() as u32;
+                        std::mem::forget(buf);
                     }
                 }
             }
@@ -65,14 +71,14 @@ pub unsafe extern "C" fn wasmer_instance_from_cache(
         return wasmer_result_t::WASMER_ERROR;
     }
 
-    let bytes: &[u8] = slice::from_raw_parts_mut(cache_bytes, cache_len as usize);
+    let bytes: &[u8] = slice::from_raw_parts(cache_bytes, cache_len as usize);
     let options: &CompilationOptions = &*(options as *const CompilationOptions);
     let compiler_chain_generator = prepare_middleware_chain_generator(&options);
     let compiler = get_compiler(compiler_chain_generator);
     let new_module = match Artifact::deserialize(bytes) {
-        Ok(serialized_cache) => match wasmer_runtime_core::load_cache_with(serialized_cache, compiler) {
+        Ok(serialized_cache) => match wasmer_runtime_core::load_cache_with(serialized_cache, &compiler) {
             Ok(deserialized_module) => {
-                Box::into_raw(Box::new(deserialized_module)) as _;
+                deserialized_module
             }
             Err(_) => {
                 update_last_error(CApiError {
@@ -81,13 +87,14 @@ pub unsafe extern "C" fn wasmer_instance_from_cache(
                 return wasmer_result_t::WASMER_ERROR;
             }
         },
-        Err(_) => {
+        Err(err) => {
+            println!("{:?}", err);
             update_last_error(CApiError {
                 msg: "Failed to deserialize the module".to_string(),
             });
             return wasmer_result_t::WASMER_ERROR;
         }
-    }
+    };
 
     let import_object: &mut ImportObject = &mut *(GLOBAL_IMPORT_OBJECT as *mut ImportObject);
     let result_instantiation = new_module.instantiate(&import_object);

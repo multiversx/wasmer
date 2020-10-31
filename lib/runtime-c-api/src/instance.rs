@@ -248,7 +248,7 @@ pub unsafe extern "C" fn wasmer_instantiate_with_options(
     wasmer_result_t::WASMER_OK
 }
 
-unsafe fn prepare_middleware_chain_generator(
+pub unsafe fn prepare_middleware_chain_generator(
     options: &CompilationOptions
     ) -> impl Fn() -> MiddlewareChain + '_ {
     let options = options.clone();
@@ -278,7 +278,7 @@ unsafe fn prepare_middleware_chain_generator(
     chain_generator
 }
 
-unsafe fn get_compiler(chain_generator: impl Fn() -> MiddlewareChain) -> impl Compiler {
+pub unsafe fn get_compiler(chain_generator: impl Fn() -> MiddlewareChain) -> impl Compiler {
     #[cfg(feature = "llvm-backend")]
     use wasmer_llvm_backend::ModuleCodeGenerator as MeteredMCG;
 

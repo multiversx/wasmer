@@ -112,12 +112,15 @@ impl ArtifactHeader {
                 if header.version == CURRENT_CACHE_VERSION {
                     Ok((header, body_slice))
                 } else {
+                    println!("invalidated cache");
                     Err(Error::InvalidatedCache)
                 }
             } else {
+                println!("invalid magic");
                 Err(Error::InvalidFile(InvalidFileType::InvalidMagic))
             }
         } else {
+            println!("invalid size");
             Err(Error::InvalidFile(InvalidFileType::InvalidSize))
         }
     }
@@ -148,6 +151,7 @@ impl ArtifactHeader {
     }
 }
 
+
 #[derive(Serialize, Deserialize)]
 struct ArtifactInner {
     info: Box<ModuleInfo>,
@@ -177,16 +181,6 @@ impl Artifact {
         }
     }
 
-    /// Deserializes an `Artifact` from the given byte slice.
-    pub fn deserialize(bytes: &[u8]) -> Result<Self, Error> {
-        let (_, body_slice) = ArtifactHeader::read_from_slice(bytes)?;
-
-        let inner = serde_bench::deserialize(body_slice)
-            .map_err(|e| Error::DeserializeError(format!("{:#?}", e)))?;
-
-        Ok(Artifact { inner })
-    }
-
     /// A reference to the `Artifact`'s stored `ModuleInfo`
     pub fn info(&self) -> &ModuleInfo {
         &self.inner.info
@@ -199,6 +193,16 @@ impl Artifact {
             self.inner.backend_metadata,
             self.inner.compiled_code,
         )
+    }
+
+    /// Deserializes an `Artifact` from the given byte slice.
+    pub fn deserialize(bytes: &[u8]) -> Result<Self, Error> {
+        let (_, body_slice) = ArtifactHeader::read_from_slice(bytes)?;
+        
+        let inner = serde_bench::deserialize(body_slice)
+            .map_err(|e| Error::DeserializeError(format!("{:#?}", e)))?;
+
+        Ok(Artifact { inner })
     }
 
     /// Serializes the `Artifact` into a vector of bytes
@@ -215,7 +219,6 @@ impl Artifact {
             .map_err(|e| Error::SerializeError(e.to_string()))?;
 
         let data_len = (buffer.len() - mem::size_of::<ArtifactHeader>()) as u64;
-
         let (header, _) = ArtifactHeader::read_from_slice_mut(&mut buffer)?;
         header.data_len = data_len;
 
