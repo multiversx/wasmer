@@ -56,6 +56,22 @@ pub unsafe extern "C" fn wasmer_instance_set_points_used(
     metering::set_points_used(instance, new_gas)
 }
 
+// sets gas limit
+#[allow(clippy::cast_ptr_alignment)]
+#[no_mangle]
+#[cfg(feature = "metering")]
+pub unsafe extern "C" fn wasmer_instance_set_points_limit(
+    instance: *mut wasmer_instance_t,
+    limit: u64,
+) {
+    if instance.is_null() {
+        return;
+    }
+    let instance = &mut *(instance as *mut wasmer_runtime::Instance);
+    metering::set_points_limit(instance, limit)
+}
+
+
 /// Creates a new Module with gas limit from the given wasm bytes.
 ///
 /// Returns `wasmer_result_t::WASMER_OK` upon success.
@@ -69,7 +85,6 @@ pub unsafe extern "C" fn wasmer_compile_with_gas_metering(
     module: *mut *mut wasmer_module_t,
     wasm_bytes: *mut u8,
     wasm_bytes_len: u32,
-    gas_limit: u64,
 ) -> wasmer_result_t {
     if module.is_null() {
         update_last_error(CApiError {
@@ -84,7 +99,7 @@ pub unsafe extern "C" fn wasmer_compile_with_gas_metering(
         return wasmer_result_t::WASMER_ERROR;
     }
 
-    let compiler = get_metered_compiler(gas_limit);
+    let compiler = get_metered_compiler();
 
     let bytes: &[u8] = slice::from_raw_parts_mut(wasm_bytes, wasm_bytes_len as usize);
     let result = wasmer_runtime_core::compile_with(bytes, &compiler);
@@ -102,7 +117,7 @@ pub unsafe extern "C" fn wasmer_compile_with_gas_metering(
 }
 
 #[cfg(feature = "metering")]
-unsafe fn get_metered_compiler(limit: u64) -> impl Compiler {
+unsafe fn get_metered_compiler() -> impl Compiler {
     use wasmer_runtime_core::codegen::{MiddlewareChain, StreamingCompiler};
 
     #[cfg(feature = "llvm-backend")]
@@ -119,7 +134,7 @@ unsafe fn get_metered_compiler(limit: u64) -> impl Compiler {
     let c: StreamingCompiler<MeteredMCG, _, _, _, _> = StreamingCompiler::new(move || {
         let mut chain = MiddlewareChain::new();
 
-        chain.push(metering::Metering::new(limit, &OPCODE_COSTS, 0));
+        chain.push(metering::Metering::new(&OPCODE_COSTS, 0));
         chain.push(runtime_breakpoints::RuntimeBreakpointHandler::new());
 
         chain
@@ -137,7 +152,6 @@ pub unsafe extern "C" fn wasmer_compile_with_gas_metering(
     module: *mut *mut wasmer_module_t,
     wasm_bytes: *mut u8,
     wasm_bytes_len: u32,
-    _: u64,
 ) -> wasmer_result_t {
     if module.is_null() {
         update_last_error(CApiError {

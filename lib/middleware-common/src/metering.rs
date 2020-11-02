@@ -10,6 +10,7 @@ use crate::metering_costs::{get_opcode_index, get_local_allocate_cost_index};
 use crate::runtime_breakpoints::push_runtime_breakpoint;
 
 static FIELD_USED_POINTS: InternalField = InternalField::allocate();
+static FIELD_POINTS_LIMIT: InternalField = InternalField::allocate();
 pub const BREAKPOINT_VALUE__OUT_OF_GAS: u64 = 4;
 
 /// Metering is a compiler middleware that calculates the cost of WebAssembly instructions at compile
@@ -26,7 +27,6 @@ pub const BREAKPOINT_VALUE__OUT_OF_GAS: u64 = 4;
 ///
 
 pub struct Metering<'a> {
-    limit: u64,
     unmetered_locals: usize,
     current_block: u64,
     func_locals_costs: u32,
@@ -34,9 +34,8 @@ pub struct Metering<'a> {
 }
 
 impl<'a> Metering<'a> {
-    pub fn new(limit: u64, opcode_costs: &'a [u32], unmetered_locals: usize) -> Metering<'a> {
+    pub fn new(opcode_costs: &'a [u32], unmetered_locals: usize) -> Metering<'a> {
         Metering {
-            limit,
             unmetered_locals,
             current_block: 0,
             func_locals_costs: 0,
@@ -101,9 +100,9 @@ impl<'q> FunctionMiddleware for Metering<'q> {
                         sink.push(Event::Internal(InternalEvent::GetInternal(
                             FIELD_USED_POINTS.index() as _,
                         )));
-                        sink.push(Event::WasmOwned(Operator::I64Const {
-                            value: self.limit as i64,
-                        }));
+                        sink.push(Event::Internal(InternalEvent::GetInternal(
+                            FIELD_POINTS_LIMIT.index() as _,
+                        )));
                         sink.push(Event::WasmOwned(Operator::I64GeU));
                         sink.push(Event::WasmOwned(Operator::If {
                             ty: WpTypeOrFuncType::Type(WpType::EmptyBlockType),
@@ -148,6 +147,11 @@ pub fn get_points_used(instance: &Instance) -> u64 {
 /// Sets the number of points used by an Instance.
 pub fn set_points_used(instance: &mut Instance, value: u64) {
     instance.set_internal(&FIELD_USED_POINTS, value);
+}
+
+/// Sets the limit of points to be used by an Instance.
+pub fn set_points_limit(instance: &mut Instance, value: u64) {
+    instance.set_internal(&FIELD_POINTS_LIMIT, value);
 }
 
 /// Returns the number of points used in a Ctx.

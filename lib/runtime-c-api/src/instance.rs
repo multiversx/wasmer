@@ -236,18 +236,19 @@ pub unsafe extern "C" fn wasmer_instantiate_with_options(
 
     let import_object: &mut ImportObject = &mut *(GLOBAL_IMPORT_OBJECT as *mut ImportObject);
     let result_instantiation = new_module.instantiate(&import_object);
-    let new_instance = match result_instantiation {
+    let mut new_instance = match result_instantiation {
         Ok(instance) => instance,
         Err(error) => {
             update_last_error(error);
             return wasmer_result_t::WASMER_ERROR;
         }
     };
+    metering::set_points_limit(&mut new_instance, options.gas_limit);
     *instance = Box::into_raw(Box::new(new_instance)) as *mut wasmer_instance_t;
     wasmer_result_t::WASMER_OK
 }
 
-unsafe fn prepare_middleware_chain_generator(
+pub unsafe fn prepare_middleware_chain_generator(
     options: &CompilationOptions
     ) -> impl Fn() -> MiddlewareChain + '_ {
     let options = options.clone();
@@ -258,7 +259,6 @@ unsafe fn prepare_middleware_chain_generator(
         if options.metering {
             #[cfg(feature = "metering")]
             chain.push(metering::Metering::new(
-                    options.gas_limit,
                     &OPCODE_COSTS,
                     options.unmetered_locals
                 ));
@@ -278,7 +278,7 @@ unsafe fn prepare_middleware_chain_generator(
     chain_generator
 }
 
-unsafe fn get_compiler(chain_generator: impl Fn() -> MiddlewareChain) -> impl Compiler {
+pub unsafe fn get_compiler(chain_generator: impl Fn() -> MiddlewareChain) -> impl Compiler {
     #[cfg(feature = "llvm-backend")]
     use wasmer_llvm_backend::ModuleCodeGenerator as MeteredMCG;
 
