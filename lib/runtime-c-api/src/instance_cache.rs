@@ -5,7 +5,7 @@ use crate::{
 };
 use wasmer_runtime_core::{cache::Artifact, import::ImportObject};
 use std::slice;
-use crate::import::GLOBAL_IMPORT_OBJECT;
+use crate::import::REGISTERED_IMPORT_OBJECTS;
 
 #[cfg(not(feature = "cranelift-backend"))]
 use wasmer_middleware_common::metering;
@@ -96,7 +96,8 @@ pub unsafe extern "C" fn wasmer_instance_from_cache(
         }
     };
 
-    let import_object: &mut ImportObject = &mut *(GLOBAL_IMPORT_OBJECT as *mut ImportObject);
+    let cached_import_object = REGISTERED_IMPORT_OBJECTS[options.import_object_index];
+    let import_object: &mut ImportObject = &mut *(cached_import_object as *mut ImportObject);
     let result_instantiation = new_module.instantiate(&import_object);
     let mut new_instance = match result_instantiation {
         Ok(instance) => instance,
