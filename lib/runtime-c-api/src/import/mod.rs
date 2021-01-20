@@ -25,15 +25,16 @@ use wasmer_runtime_core::{
     module::ImportName,
     types::{FuncSig, Type},
 };
-use std::{collections::HashMap};
+use std::collections::HashMap;
 
 pub enum ImportError {
     ModuleNameError,
     ImportNameError,
 }
 
-pub static mut GLOBAL_IMPORT_OBJECT: *mut ImportObject = 0 as *mut ImportObject;
-pub static mut GLOBAL_IMPORT_OBJECT_INITIALIZED: bool = false;
+pub const MAX_IMPORT_OBJECTS: usize = 255;
+pub static mut CURRENT_IMPORT_OBJECTS: usize = 0;
+pub static mut REGISTERED_IMPORT_OBJECTS: [*mut ImportObject; MAX_IMPORT_OBJECTS] = [0 as *mut ImportObject; MAX_IMPORT_OBJECTS];
 
 #[repr(C)]
 pub struct wasmer_import_t {
@@ -74,14 +75,29 @@ pub unsafe extern "C" fn wasmer_import_object_new() -> *mut wasmer_import_object
 
 #[allow(clippy::cast_ptr_alignment)]
 #[no_mangle]
-pub unsafe extern "C" fn wasmer_import_object_cache_from_imports(
+pub unsafe extern "C" fn wasmer_import_object_new_index() -> usize {
+    if CURRENT_IMPORT_OBJECTS >= MAX_IMPORT_OBJECTS {
+        return MAX_IMPORT_OBJECTS + 1;
+    } else {
+        let new_index = CURRENT_IMPORT_OBJECTS;
+        CURRENT_IMPORT_OBJECTS += 1;
+        new_index
+    }
+}
+
+
+#[allow(clippy::cast_ptr_alignment)]
+#[no_mangle]
+pub unsafe extern "C" fn wasmer_import_object_set(
     imports: *mut wasmer_import_t,
     imports_len: c_uint,
+    import_object_index: usize,
 ) -> wasmer_result_t {
-    if GLOBAL_IMPORT_OBJECT_INITIALIZED {
-        return wasmer_result_t::WASMER_OK;
+    println!("wasmer_import_object_set import_object_index -> {}", import_object_index);
+    if import_object_index > CURRENT_IMPORT_OBJECTS {
+        update_last_error(CApiError { msg: "invalid import object index".to_string() });
+        return wasmer_result_t::WASMER_ERROR;
     }
-
     let imports_result = wasmer_create_import_object_from_imports(imports, imports_len);
     let import_object = match imports_result {
         Err(ImportError::ModuleNameError) => {
@@ -94,8 +110,7 @@ pub unsafe extern "C" fn wasmer_import_object_cache_from_imports(
         }
         Ok(created_imports_object) => created_imports_object
     };
-    GLOBAL_IMPORT_OBJECT = Box::into_raw(Box::new(import_object));
-    GLOBAL_IMPORT_OBJECT_INITIALIZED = true;
+    REGISTERED_IMPORT_OBJECTS[import_object_index] = Box::into_raw(Box::new(import_object));
     return wasmer_result_t::WASMER_OK
 }
 

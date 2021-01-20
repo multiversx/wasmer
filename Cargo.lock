@@ -2142,13 +2142,13 @@ checksum = "c702914acda5feeeffbc29e4d953e5b9ce79d8b98da4dbf18a77086e116c5470"
 [[package]]
 name = "wasmparser"
 version = "0.51.4"
-source = "git+https://github.com/ElrondNetwork/wasmparser.rs#f776d0ae8c349463b25d023ab6c8b1a80a761fd7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aeb1956b19469d1c5e63e459d29e7b5aa0f558d9f16fcef09736f8a265e6c10a"
 
 [[package]]
 name = "wasmparser"
 version = "0.51.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aeb1956b19469d1c5e63e459d29e7b5aa0f558d9f16fcef09736f8a265e6c10a"
+source = "git+https://github.com/ElrondNetwork/wasmparser.rs#f776d0ae8c349463b25d023ab6c8b1a80a761fd7"
 
 [[package]]
 name = "wast"

@@ -3,7 +3,7 @@
 use crate::{
     error::{update_last_error, CApiError},
     export::{wasmer_exports_t, wasmer_import_export_kind, NamedExport, NamedExports},
-    import::{wasmer_import_t, GLOBAL_IMPORT_OBJECT},
+    import::{wasmer_import_t, REGISTERED_IMPORT_OBJECTS},
     memory::wasmer_memory_t,
     value::{wasmer_value, wasmer_value_t, wasmer_value_tag},
     wasmer_result_t,
@@ -198,6 +198,7 @@ pub struct wasmer_import_object_t;
 pub struct wasmer_compilation_options_t;
 
 pub struct CompilationOptions {
+    pub import_object_index: usize,
     pub gas_limit: u64,
     pub unmetered_locals: usize,
     pub opcode_trace: bool,
@@ -234,7 +235,9 @@ pub unsafe extern "C" fn wasmer_instantiate_with_options(
         }
     };
 
-    let import_object: &mut ImportObject = &mut *(GLOBAL_IMPORT_OBJECT as *mut ImportObject);
+    println!("wasmer_instantiate_with_options options.import_object_index -> {}", options.import_object_index);
+    let cached_import_object = REGISTERED_IMPORT_OBJECTS[options.import_object_index];
+    let import_object: &mut ImportObject = &mut *(cached_import_object as *mut ImportObject);
     let result_instantiation = new_module.instantiate(&import_object);
     let mut new_instance = match result_instantiation {
         Ok(instance) => instance,

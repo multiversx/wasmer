@@ -38,6 +38,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#define MAX_IMPORT_OBJECTS 255
+
 #define OPCODE_COUNT 448
 
 #if defined(WASMER_WASI_ENABLED)
@@ -785,9 +787,6 @@ wasmer_result_t wasmer_import_func_returns(const wasmer_import_func_t *func,
 wasmer_result_t wasmer_import_func_returns_arity(const wasmer_import_func_t *func,
                                                  uint32_t *result);
 
-wasmer_result_t wasmer_import_object_cache_from_imports(wasmer_import_t *imports,
-                                                        unsigned int imports_len);
-
 /**
  * Frees memory of the given ImportObject
  */
@@ -856,6 +855,12 @@ wasmer_import_object_iter_t *wasmer_import_object_iterate_functions(const wasmer
  * See also `wasmer_import_object_append`
  */
 wasmer_import_object_t *wasmer_import_object_new(void);
+
+uintptr_t wasmer_import_object_new_index(void);
+
+wasmer_result_t wasmer_import_object_set(wasmer_import_t *imports,
+                                         unsigned int imports_len,
+                                         uintptr_t import_object_index);
 
 wasmer_result_t wasmer_instance_cache(wasmer_instance_t *instance,
                                       const uint8_t **cache_bytes,
