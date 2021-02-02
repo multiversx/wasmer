@@ -3,6 +3,16 @@
 #include <assert.h>
 #include <string.h>
 wasmer_instance_t *instance;
+
+
+typedef struct {
+	uint64_t GasLimit;
+	uint64_t UnmeteredLocals;
+	bool OpcodeTrace        ;
+	bool Metering           ;
+	bool RuntimeBreakpoints ;
+} CompilationOptions;
+
 // Function to print the most recent error string from Wasmer if we have them
 void print_wasmer_error()
 {
@@ -85,14 +95,26 @@ wasmer_instance_t *create_wasmer_instance(
   fread(bytes, 1, len, file);
   fclose(file);
 
+  // Set the global imports in Wasmer.
+  uint64_t result = wasmer_import_object_cache_from_imports(imports, 2);
+  assert(result == WASMER_OK);
+
+
+  CompilationOptions options;
+  options.GasLimit = 100000;
+  options.UnmeteredLocals = 1024;
+  options.OpcodeTrace = 0;
+  options.Metering = 1;
+  options.RuntimeBreakpoints = 1;
+
+
   // Instantiate a WebAssembly Instance from Wasm bytes and imports
   wasmer_instance_t *instance = NULL;
-  wasmer_result_t compile_result = wasmer_instantiate(
+  wasmer_result_t compile_result = wasmer_instantiate_with_options(
       &instance, // Our reference to our Wasm instance
       bytes, // The bytes of the WebAssembly modules
       len, // The length of the bytes of the WebAssembly module
-      imports, // The Imports array the will be used as our importObject
-      2 // The number of imports in the imports array
+      (wasmer_compilation_options_t*)&options
       );
 
   // Ensure the compilation was successful.
@@ -157,6 +179,11 @@ int main() {
       results, // Our array of results
       1 // The number of results
       );
+
+  uint64_t breakpoint = wasmer_instance_get_runtime_breakpoint_value(instance);
+  printf("\n");
+  printf("breakpoint value %u\n", (unsigned int) breakpoint);
+  printf("call result %u\n", (unsigned int) call_result);
 
   // Assert the call error'd (Because we error'd from the host import function)
   assert(call_result == WASMER_ERROR);
