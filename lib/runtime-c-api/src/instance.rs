@@ -322,6 +322,33 @@ pub extern "C" fn wasmer_instance_context_get(
     context as *const wasmer_instance_context_t
 }
 
+/// Verifies whether the specified function name is imported by the given instance.
+#[allow(clippy::cast_ptr_alignment)]
+#[no_mangle]
+pub unsafe extern "C" fn wasmer_instance_is_function_imported(
+    instance: *mut wasmer_instance_t,
+    name: *const c_char,
+) -> bool {
+    if instance.is_null() {
+        return false;
+    }
+
+    if name.is_null() {
+        return false;
+    }
+
+    let instance = &*(instance as *const Instance);
+
+    let func_name_c = CStr::from_ptr(name);
+    let func_name_r = func_name_c.to_str().unwrap();
+
+    let module = instance.module();
+
+    let functions = module.info().name_table.to_vec();
+
+    functions.contains(&func_name_r)
+}
+
 /// Calls an exported function of a WebAssembly instance by `name`
 /// with the provided parameters. The exported function results are
 /// stored on the provided `results` pointer.
