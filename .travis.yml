@@ -11,7 +11,7 @@ before_install:
 - if [[ $TRAVIS_OS_NAME == linux ]]; then sudo apt-get install -y patchelf; fi
 install: travis_retry
 rust:
-  - nightly-2019-12-19
+  - nightly-2021-01-25
 
 cache:
   directories:
