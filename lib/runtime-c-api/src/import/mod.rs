@@ -90,7 +90,7 @@ pub unsafe extern "C" fn wasmer_import_object_cache_from_imports(
         Ok(created_imports_object) => created_imports_object
     };
 
-    // TODO deallocate previous GLOBAL_IMPORT_OBJECT
+    let _ = Box::from_raw(GLOBAL_IMPORT_OBJECT); // deallocate previous GLOBAL_IMPORT_OBJECT
     GLOBAL_IMPORT_OBJECT = Box::into_raw(Box::new(import_object));
     return wasmer_result_t::WASMER_OK
 }
