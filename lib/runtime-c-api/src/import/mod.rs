@@ -74,6 +74,13 @@ pub unsafe extern "C" fn wasmer_import_object_new() -> *mut wasmer_import_object
 
 #[allow(clippy::cast_ptr_alignment)]
 #[no_mangle]
+pub unsafe extern "C" fn wasmer_import_object_cache_reset() {
+    GLOBAL_IMPORT_OBJECT = 0 as *mut ImportObject;
+    GLOBAL_IMPORT_OBJECT_INITIALIZED = false;
+}
+
+#[allow(clippy::cast_ptr_alignment)]
+#[no_mangle]
 pub unsafe extern "C" fn wasmer_import_object_cache_from_imports(
     imports: *mut wasmer_import_t,
     imports_len: c_uint,

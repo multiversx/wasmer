@@ -788,6 +788,8 @@ wasmer_result_t wasmer_import_func_returns_arity(const wasmer_import_func_t *fun
 wasmer_result_t wasmer_import_object_cache_from_imports(wasmer_import_t *imports,
                                                         unsigned int imports_len);
 
+void wasmer_import_object_cache_reset(void);
+
 /**
  * Frees memory of the given ImportObject
  */
