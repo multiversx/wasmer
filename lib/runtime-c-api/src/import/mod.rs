@@ -33,7 +33,6 @@ pub enum ImportError {
 }
 
 pub static mut GLOBAL_IMPORT_OBJECT: *mut ImportObject = 0 as *mut ImportObject;
-pub static mut GLOBAL_IMPORT_OBJECT_INITIALIZED: bool = false;
 
 #[repr(C)]
 pub struct wasmer_import_t {
@@ -78,10 +77,6 @@ pub unsafe extern "C" fn wasmer_import_object_cache_from_imports(
     imports: *mut wasmer_import_t,
     imports_len: c_uint,
 ) -> wasmer_result_t {
-    if GLOBAL_IMPORT_OBJECT_INITIALIZED {
-        return wasmer_result_t::WASMER_OK;
-    }
-
     let imports_result = wasmer_create_import_object_from_imports(imports, imports_len);
     let import_object = match imports_result {
         Err(ImportError::ModuleNameError) => {
@@ -94,8 +89,12 @@ pub unsafe extern "C" fn wasmer_import_object_cache_from_imports(
         }
         Ok(created_imports_object) => created_imports_object
     };
+
+    if GLOBAL_IMPORT_OBJECT != (0 as *mut ImportObject) {
+        let _ = Box::from_raw(GLOBAL_IMPORT_OBJECT); // deallocate previous GLOBAL_IMPORT_OBJECT
+    }
+
     GLOBAL_IMPORT_OBJECT = Box::into_raw(Box::new(import_object));
-    GLOBAL_IMPORT_OBJECT_INITIALIZED = true;
     return wasmer_result_t::WASMER_OK
 }
 

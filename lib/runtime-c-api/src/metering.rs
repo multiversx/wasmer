@@ -14,7 +14,6 @@ use wasmer_middleware_common::metering;
 
 pub const OPCODE_COUNT: usize = 448;
 pub static mut OPCODE_COSTS: [u32; OPCODE_COUNT] = [0; OPCODE_COUNT];
-static mut OPCODE_COSTS_INITIALIZED: bool = false;
 
 #[allow(clippy::cast_ptr_alignment)]
 #[cfg(feature = "metering")]
@@ -22,11 +21,9 @@ static mut OPCODE_COSTS_INITIALIZED: bool = false;
 pub unsafe extern "C" fn wasmer_set_opcode_costs(
     opcode_costs_pointer: *const u32,
 ) {
-    if !OPCODE_COSTS_INITIALIZED {
-        OPCODE_COSTS.copy_from_slice(slice::from_raw_parts(opcode_costs_pointer, OPCODE_COUNT));
-        OPCODE_COSTS_INITIALIZED = true;
-    }
+    OPCODE_COSTS.copy_from_slice(slice::from_raw_parts(opcode_costs_pointer, OPCODE_COUNT));
 }
+
 
 // returns gas used
 #[allow(clippy::cast_ptr_alignment)]
