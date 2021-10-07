@@ -413,14 +413,14 @@ dependencies = [
 
 [[package]]
 name = "dynasm"
-version = "0.5.2"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "42a814e1edeb85dd2a3c6fc0d6bf76d02ca5695d438c70ecee3d90774f3259c5"
+checksum = "6a93688d3993e998336f7e31d1272bafc078f7665c8b883bd08f140e73d2e9cd"
 dependencies = [
  "bitflags",
  "byteorder",
  "lazy_static",
- "owning_ref",
+ "proc-macro-error",
  "proc-macro2 1.0.20",
  "quote 1.0.7",
  "syn 1.0.40",
@@ -428,11 +428,12 @@ dependencies = [
 
 [[package]]
 name = "dynasmrt"
-version = "0.5.2"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a393aaeb4441a48bcf47b5b6155971f82cc1eb77e22855403ccc0415ac8328d"
+checksum = "acae550ea0de09db4dcb18d4cd49f9f7963edd34783a4571429ba2c4e13e1e09"
 dependencies = [
  "byteorder",
+ "dynasm",
  "memmap",
 ]
 
@@ -920,15 +921,6 @@ checksum = "f8b18f57ab94fbd058e30aa57f712ec423c0bb7403f8493a6c58eef0c36d9402"
 dependencies = [
  "redox_syscall",
  "sdl2",
-]
-
-[[package]]
-name = "owning_ref"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6ff55baddef9e4ad00f88b6c743a2a8062d4c6ade126c2a528644b8e444d52ce"
-dependencies = [
- "stable_deref_trait",
 ]
 
 [[package]]
