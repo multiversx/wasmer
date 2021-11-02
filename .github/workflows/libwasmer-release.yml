@@ -1,8 +1,6 @@
-name: build-linux-amd64-so
+name: libwasmer-release
 
 on:
-  push:
-  pull_request:
   release:
 
 
