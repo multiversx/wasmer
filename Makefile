@@ -113,7 +113,7 @@ capi-linux-arm64: capi
 	mv target/release/libwasmer_runtime_c_api.so target/release/libwasmer_linux_arm64.so
 	patchelf --set-soname libwasmer_linux_arm64.so target/release/libwasmer_linux_arm64.so
 
-capi-osx-arm64: capi
+capi-osx-amd64: capi
 	mv target/release/libwasmer_runtime_c_api.dylib target/release/libwasmer_darwin_amd64.dylib
 	install_name_tool -id @executable_path/libwasmer_darwin_amd64.dylib target/release/libwasmer_darwin_amd64.dylib;
 

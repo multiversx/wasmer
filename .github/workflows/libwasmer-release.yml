@@ -18,8 +18,10 @@ jobs:
         include:
           - os: ubuntu-18.04
             artifact_name: libwasmer_linux_amd64.so
+            make_target: capi-linux-amd64
           - os: macos-11
             artifact_name: libwasmer_darwin_amd64.dylib
+            make_target: capi-osx-amd64
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -33,7 +35,6 @@ jobs:
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          prerelease: true
           name: ${{ steps.get_version.outputs.VERSION }}-linux-amd64
           files: |
             target/release/${{ matrix.artifact_name }}
