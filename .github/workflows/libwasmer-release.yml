@@ -2,6 +2,8 @@ name: libwasmer-release
 
 on:
   release:
+    types:
+      - created
 
 
 env:
