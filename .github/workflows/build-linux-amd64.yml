@@ -1,0 +1,26 @@
+name: build-linux-amd64-so
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-so:
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Make
+        run: make capi-linux-amd64
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          prerelease: true
+          name: ${{ tag_name }}-linux-amd64
+          files: |
+            target/release/libwasmer_linux_amd64.so
