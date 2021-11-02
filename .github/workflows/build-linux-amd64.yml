@@ -2,9 +2,8 @@ name: build-linux-amd64-so
 
 on:
   push:
-    tags:
-      - "v*.*.*"
   pull_request:
+  release:
 
 
 env:
