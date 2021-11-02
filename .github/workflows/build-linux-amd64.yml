@@ -4,8 +4,10 @@ on:
   push:
     tags:
       - "v*.*.*"
-  pull-requests:
+  pull_requests:
     branch: [ master ]
+    types: [opened, ready_for_review]
+
 
 env:
   CARGO_TERM_COLOR: always
