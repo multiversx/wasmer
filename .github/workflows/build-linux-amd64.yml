@@ -11,18 +11,30 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build-so:
-    runs-on: ubuntu-18.04
+  build:
+    name: Build dynamic library for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-18.04
+            artifact_name: libwasmer_linux_amd64.so
+          - os: macos-11
+            artifact_name: libwasmer_darwin_amd64.dylib
     steps:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Make
         run: make capi-linux-amd64
+      - name: Get the version
+        id: get_version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/}
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
           prerelease: true
-          name: ${{ github.ref }}-linux-amd64
+          name: ${{ steps.get_version.outputs.VERSION }}-linux-amd64
           files: |
-            target/release/libwasmer_linux_amd64.so
+            target/release/${{ matrix.artifact_name }}
