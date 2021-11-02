@@ -5,8 +5,6 @@ on:
     tags:
       - "v*.*.*"
   pull_request:
-    branch: [ master ]
-    types:
 
 
 env:
@@ -25,6 +23,6 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           prerelease: true
-          name: ${{ tag_name }}-linux-amd64
+          name: ${{ github.ref }}-linux-amd64
           files: |
             target/release/libwasmer_linux_amd64.so
