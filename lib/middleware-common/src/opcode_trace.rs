@@ -4,8 +4,8 @@ use std::io::Write;
 
 use wasmer_runtime_core::{
     codegen::{Event, EventSink, FunctionMiddleware, InternalEvent},
-    module::{ModuleInfo},
-    vm::{InternalField},
+    module::ModuleInfo,
+    vm::InternalField,
     wasmparser::Operator,
     Instance,
 };

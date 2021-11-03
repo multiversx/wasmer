@@ -1,14 +1,16 @@
 use wasmer_runtime_core::{
     codegen::{Event, EventSink, FunctionMiddleware, InternalEvent},
     module::ModuleInfo,
-    vm::{InternalField},
+    vm::InternalField,
     wasmparser::{Operator, Type as WpType, TypeOrFuncType as WpTypeOrFuncType},
-    error::{RuntimeError},
+    error::RuntimeError,
     Instance,
 };
 
 pub static FIELD_RUNTIME_BREAKPOINT_VALUE: InternalField = InternalField::allocate();
-pub const BREAKPOINT_VALUE__NO_BREAKPOINT: u64 = 0;
+pub const BREAKPOINT_VALUE_NO_BREAKPOINT: u64 = 0;
+pub const BREAKPOINT_VALUE_EXECUTION_FAILED: u64 = 1;
+pub const BREAKPOINT_VALUE_OUT_OF_GAS: u64 = 4;
 
 
 #[derive(Copy, Clone, Debug)]
@@ -53,7 +55,7 @@ impl FunctionMiddleware for RuntimeBreakpointHandler {
                 FIELD_RUNTIME_BREAKPOINT_VALUE.index() as _,
             )));
             sink.push(Event::WasmOwned(Operator::I64Const {
-                value: BREAKPOINT_VALUE__NO_BREAKPOINT as i64,
+                value: BREAKPOINT_VALUE_NO_BREAKPOINT as i64,
             }));
             sink.push(Event::WasmOwned(Operator::I64Ne));
             sink.push(Event::WasmOwned(Operator::If {

@@ -7,11 +7,10 @@ use wasmer_runtime_core::{
 };
 
 use crate::metering_costs::{get_opcode_index, get_local_allocate_cost_index};
-use crate::runtime_breakpoints::push_runtime_breakpoint;
+use crate::runtime_breakpoints::{push_runtime_breakpoint, BREAKPOINT_VALUE_OUT_OF_GAS};
 
 static FIELD_USED_POINTS: InternalField = InternalField::allocate();
 static FIELD_POINTS_LIMIT: InternalField = InternalField::allocate();
-pub const BREAKPOINT_VALUE__OUT_OF_GAS: u64 = 4;
 
 /// Metering is a compiler middleware that calculates the cost of WebAssembly instructions at compile
 /// time and will count the cost of executed instructions at runtime. Within the Metering functionality,
@@ -107,7 +106,7 @@ impl<'q> FunctionMiddleware for Metering<'q> {
                         sink.push(Event::WasmOwned(Operator::If {
                             ty: WpTypeOrFuncType::Type(WpType::EmptyBlockType),
                         }));
-                        push_runtime_breakpoint(sink, BREAKPOINT_VALUE__OUT_OF_GAS);
+                        push_runtime_breakpoint(sink, BREAKPOINT_VALUE_OUT_OF_GAS);
                         sink.push(Event::WasmOwned(Operator::End));
                     }
                     _ => {}
