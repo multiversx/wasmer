@@ -52,7 +52,7 @@ impl FunctionMiddleware for OpcodeControl {
                         sink.push(Event::WasmOwned(Operator::I32Const {
                             value: self.max_memory_grow_delta as i32,
                         }));
-                        sink.push(Event::WasmOwned(Operator::I64GtU));
+                        sink.push(Event::WasmOwned(Operator::I32GtU));
                         sink.push(Event::WasmOwned(Operator::If {
                             ty: WpTypeOrFuncType::Type(WpType::EmptyBlockType),
                         }));
