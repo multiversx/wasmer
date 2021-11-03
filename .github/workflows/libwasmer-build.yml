@@ -1,0 +1,26 @@
+name: libwasmer-build
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build dynamic library for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-18.04
+            artifact_name: libwasmer_linux_amd64.so
+            make_target: capi-linux-amd64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Make
+        run: make ${{ matrix.make_target }}
