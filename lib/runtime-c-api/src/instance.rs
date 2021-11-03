@@ -25,6 +25,7 @@ use wasmer_middleware_common::metering;
 
 use wasmer_middleware_common::runtime_breakpoints;
 use wasmer_middleware_common::opcode_trace;
+use wasmer_middleware_common::opcode_control;
 
 
 
@@ -200,6 +201,7 @@ pub struct wasmer_compilation_options_t;
 pub struct CompilationOptions {
     pub gas_limit: u64,
     pub unmetered_locals: usize,
+    pub max_memory_grow_delta: usize,
     pub opcode_trace: bool,
     pub metering: bool,
     pub runtime_breakpoints: bool,
@@ -264,6 +266,10 @@ pub unsafe fn prepare_middleware_chain_generator(
                 ));
         }
 
+        chain.push(opcode_control::OpcodeControl::new(options.max_memory_grow_delta));
+
+        // The RuntimeBreakpointHandler must be the last middleware in the chain (OpcodeTracer is
+        // an exception since it does not alter the opcodes meaningfully.
         if options.runtime_breakpoints {
             chain.push(runtime_breakpoints::RuntimeBreakpointHandler::new());
         }
