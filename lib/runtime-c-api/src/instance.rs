@@ -201,6 +201,7 @@ pub struct wasmer_compilation_options_t;
 pub struct CompilationOptions {
     pub gas_limit: u64,
     pub unmetered_locals: usize,
+    pub max_memory_grow: usize,
     pub max_memory_grow_delta: usize,
     pub opcode_trace: bool,
     pub metering: bool,
@@ -266,7 +267,10 @@ pub unsafe fn prepare_middleware_chain_generator(
                 ));
         }
 
-        chain.push(opcode_control::OpcodeControl::new(options.max_memory_grow_delta));
+        chain.push(opcode_control::OpcodeControl::new(
+                options.max_memory_grow,
+                options.max_memory_grow_delta
+            ));
 
         // The RuntimeBreakpointHandler must be the last middleware in the chain (OpcodeTracer is
         // an exception since it does not alter the opcodes meaningfully.
