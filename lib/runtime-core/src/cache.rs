@@ -3,6 +3,7 @@
 //! and loaded to allow skipping compilation and fast startup.
 
 use crate::{module::ModuleInfo, sys::Memory};
+use rkyv::{Archive, Serialize as RkyvSerialize, Deserialize as RkyvDeserialize};
 use std::{io, mem, slice};
 
 /// Indicates the invalid type of invalid cache file
@@ -152,8 +153,8 @@ impl ArtifactHeader {
 }
 
 
-#[derive(Serialize, Deserialize)]
-struct ArtifactInner {
+#[derive(Serialize, Deserialize, Archive, RkyvSerialize, RkyvDeserialize)]
+pub struct ArtifactInner {
     info: Box<ModuleInfo>,
     #[serde(with = "serde_bytes")]
     backend_metadata: Box<[u8]>,
@@ -162,6 +163,7 @@ struct ArtifactInner {
 
 /// Artifact are produced by caching, are serialized/deserialized to binaries, and contain
 /// module info, backend metadata, and compiled code.
+#[derive(Archive, RkyvSerialize, RkyvDeserialize)]
 pub struct Artifact {
     inner: ArtifactInner,
 }

@@ -25,6 +25,7 @@
 #![cfg_attr(nightly, feature(unwind_attributes))]
 #![doc(html_favicon_url = "https://wasmer.io/static/icons/favicon.ico")]
 #![doc(html_logo_url = "https://avatars3.githubusercontent.com/u/44205449?s=200&v=4")]
+#![feature(trivial_bounds)]
 
 #[macro_use]
 extern crate serde_derive;
@@ -60,6 +61,7 @@ pub mod typed_func;
 pub mod types;
 pub mod units;
 pub mod vm;
+pub mod wrapped_index_map;
 #[doc(hidden)]
 pub mod vmcalls;
 #[cfg(all(unix, target_arch = "x86_64"))]

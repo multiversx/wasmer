@@ -3,6 +3,7 @@
 
 use crate::{memory::MemoryType, module::ModuleInfo, structures::TypedIndex, units::Pages};
 use std::{borrow::Cow, convert::TryFrom};
+use rkyv::{Archive, Serialize as RkyvSerialize, Deserialize as RkyvDeserialize};
 
 /// Represents a WebAssembly type.
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -423,7 +424,7 @@ pub trait LocalImport {
 macro_rules! define_map_index {
     ($ty:ident) => {
         /// Typed Index
-        #[derive(Serialize, Deserialize)]
+        #[derive(Serialize, Deserialize, Archive, RkyvSerialize, RkyvDeserialize)]
         #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
         pub struct $ty (u32);
         impl TypedIndex for $ty {

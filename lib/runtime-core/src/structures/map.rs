@@ -7,8 +7,10 @@ use std::{
     slice, vec,
 };
 
+use rkyv::{Archive, Serialize as RkyvSerialize, Deserialize as RkyvDeserialize};
+
 /// Dense item map
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Archive, RkyvSerialize, RkyvDeserialize)]
 pub struct Map<K, V>
 where
     K: TypedIndex,

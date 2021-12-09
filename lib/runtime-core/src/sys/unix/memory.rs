@@ -6,12 +6,13 @@ use nix::libc;
 use page_size;
 use std::ops::{Bound, RangeBounds};
 use std::{fs::File, os::unix::io::IntoRawFd, path::Path, ptr, slice, sync::Arc};
+use rkyv::{Archive, Serialize as RkyvSerialize, Deserialize as RkyvDeserialize};
 
 unsafe impl Send for Memory {}
 unsafe impl Sync for Memory {}
 
 /// Data for a sized and protected region of memory.
-#[derive(Debug)]
+#[derive(Debug, Archive, RkyvSerialize, RkyvDeserialize)]
 pub struct Memory {
     ptr: *mut u8,
     size: usize,
@@ -295,7 +296,7 @@ impl Protect {
 }
 
 #[derive(Debug)]
-struct RawFd(i32);
+pub struct RawFd(i32);
 
 impl RawFd {
     fn from_file(f: File) -> Self {

@@ -18,9 +18,11 @@ use crate::{
 use crate::backend::CacheGen;
 #[cfg(feature = "generate-debug-information")]
 use crate::jit_debug;
-use indexmap::IndexMap;
+use crate::wrapped_index_map::WrappedIndexMap;
 use std::collections::HashMap;
 use std::sync::Arc;
+
+use rkyv::{Archive, Serialize as RkyvSerialize, Deserialize as RkyvDeserialize};
 
 /// This is used to instantiate a new WebAssembly module.
 #[doc(hidden)]
@@ -31,7 +33,7 @@ pub struct ModuleInner {
 }
 
 /// Container for module data including memories, globals, tables, imports, and exports.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Archive, RkyvSerialize, RkyvDeserialize)]
 pub struct ModuleInfo {
     /// Map of memory index to memory descriptors.
     // This are strictly local and the typesystem ensures that.
@@ -52,7 +54,7 @@ pub struct ModuleInfo {
     pub imported_globals: Map<ImportedGlobalIndex, (ImportName, GlobalDescriptor)>,
 
     /// Map of string to export index.
-    pub exports: IndexMap<String, ExportIndex>,
+    pub exports: WrappedIndexMap<String, ExportIndex>,
 
     /// Vector of data initializers.
     pub data_initializers: Vec<DataInitializer>,
@@ -217,7 +219,7 @@ pub struct DataInitializer {
 }
 
 /// A WebAssembly table initializer.
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Archive, RkyvSerialize, RkyvDeserialize)]
 pub struct TableInitializer {
     /// The index of a table to initialize.
     pub table_index: TableIndex,
@@ -228,8 +230,9 @@ pub struct TableInitializer {
 }
 
 /// String table builder.
+#[derive(Archive, RkyvSerialize, RkyvDeserialize)]
 pub struct StringTableBuilder<K: TypedIndex> {
-    map: IndexMap<String, (K, u32, u32)>,
+    map: WrappedIndexMap<String, (K, u32, u32)>,
     buffer: String,
     count: u32,
 }
@@ -238,7 +241,7 @@ impl<K: TypedIndex> StringTableBuilder<K> {
     /// Creates a new [`StringTableBuilder`].
     pub fn new() -> Self {
         Self {
-            map: IndexMap::new(),
+            map: WrappedIndexMap::new(),
             buffer: String::new(),
             count: 0,
         }
