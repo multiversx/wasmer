@@ -153,6 +153,7 @@ impl ArtifactHeader {
 }
 
 
+/// Inner information of an Artifact.
 #[derive(Serialize, Deserialize, Archive, RkyvSerialize, RkyvDeserialize)]
 pub struct ArtifactInner {
     info: Box<ModuleInfo>,

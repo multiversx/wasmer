@@ -15,14 +15,14 @@ use crate::{
     Instance,
 };
 
+use rkyv::{Archive, Serialize as RkyvSerialize, Deserialize as RkyvDeserialize};
+
 use crate::backend::CacheGen;
 #[cfg(feature = "generate-debug-information")]
 use crate::jit_debug;
 use crate::wrapped_index_map::WrappedIndexMap;
 use std::collections::HashMap;
 use std::sync::Arc;
-
-use rkyv::{Archive, Serialize as RkyvSerialize, Deserialize as RkyvDeserialize};
 
 /// This is used to instantiate a new WebAssembly module.
 #[doc(hidden)]
@@ -178,7 +178,7 @@ impl Clone for Module {
 impl ModuleInner {}
 
 #[doc(hidden)]
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Archive, RkyvSerialize, RkyvDeserialize)]
 pub struct ImportName {
     pub namespace_index: NamespaceIndex,
     pub name_index: NameIndex,
@@ -190,7 +190,7 @@ pub struct ImportName {
 /// Used in [`ModuleInfo`] to access function signatures ([`SigIndex`]s,
 /// [`FuncSig`]), [`GlobalInit`]s, [`MemoryDescriptor`]s, and
 /// [`TableDescriptor`]s.
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Archive, RkyvSerialize, RkyvDeserialize)]
 pub enum ExportIndex {
     /// Function export index. [`FuncIndex`] is a type-safe handle referring to
     /// a Wasm function.
@@ -207,7 +207,7 @@ pub enum ExportIndex {
 }
 
 /// A data initializer for linear memory.
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Archive, RkyvSerialize, RkyvDeserialize)]
 pub struct DataInitializer {
     /// The index of the memory to initialize.
     pub memory_index: MemoryIndex,
@@ -286,7 +286,7 @@ impl<K: TypedIndex> StringTableBuilder<K> {
 }
 
 /// A map of index to string.
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Archive, RkyvSerialize, RkyvDeserialize)]
 pub struct StringTable<K: TypedIndex> {
     table: Map<K, (u32, u32)>,
     buffer: String,
@@ -321,7 +321,7 @@ impl<K: TypedIndex> StringTable<K> {
 }
 
 /// A type-safe handle referring to a module namespace.
-#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, Hash, Archive, RkyvSerialize, RkyvDeserialize)]
 pub struct NamespaceIndex(u32);
 
 impl TypedIndex for NamespaceIndex {
@@ -337,7 +337,7 @@ impl TypedIndex for NamespaceIndex {
 }
 
 /// A type-safe handle referring to a name in a module namespace.
-#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, Hash, Archive, RkyvSerialize, RkyvDeserialize)]
 pub struct NameIndex(u32);
 
 impl TypedIndex for NameIndex {

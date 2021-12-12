@@ -252,7 +252,7 @@ impl Clone for Memory {
 }
 
 /// Kinds of memory protection.
-#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, Archive, RkyvSerialize, RkyvDeserialize)]
 #[allow(dead_code)]
 pub enum Protect {
     /// Read/write/exec allowed.
@@ -295,7 +295,7 @@ impl Protect {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Archive, RkyvSerialize, RkyvDeserialize)]
 pub struct RawFd(i32);
 
 impl RawFd {
