@@ -15,12 +15,13 @@ use crate::{
     Instance,
 };
 
+use indexmap::IndexMap;
+
 use rkyv::{Archive, Serialize as RkyvSerialize, Deserialize as RkyvDeserialize};
 
 use crate::backend::CacheGen;
 #[cfg(feature = "generate-debug-information")]
 use crate::jit_debug;
-use crate::wrapped_index_map::WrappedIndexMap;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -54,7 +55,7 @@ pub struct ModuleInfo {
     pub imported_globals: Map<ImportedGlobalIndex, (ImportName, GlobalDescriptor)>,
 
     /// Map of string to export index.
-    pub exports: WrappedIndexMap<String, ExportIndex>,
+    pub exports: IndexMap<String, ExportIndex>,
 
     /// Vector of data initializers.
     pub data_initializers: Vec<DataInitializer>,
@@ -232,7 +233,7 @@ pub struct TableInitializer {
 /// String table builder.
 #[derive(Archive, RkyvSerialize, RkyvDeserialize)]
 pub struct StringTableBuilder<K: TypedIndex> {
-    map: WrappedIndexMap<String, (K, u32, u32)>,
+    map: IndexMap<String, (K, u32, u32)>,
     buffer: String,
     count: u32,
 }
@@ -241,7 +242,7 @@ impl<K: TypedIndex> StringTableBuilder<K> {
     /// Creates a new [`StringTableBuilder`].
     pub fn new() -> Self {
         Self {
-            map: WrappedIndexMap::new(),
+            map: IndexMap::new(),
             buffer: String::new(),
             count: 0,
         }

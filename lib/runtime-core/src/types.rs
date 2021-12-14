@@ -6,7 +6,7 @@ use std::{borrow::Cow, convert::TryFrom};
 use rkyv::{Archive, Serialize as RkyvSerialize, Deserialize as RkyvDeserialize};
 
 /// Represents a WebAssembly type.
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, Archive, RkyvSerialize, RkyvDeserialize)]
 pub enum Type {
     /// The `i32` type.
     I32,

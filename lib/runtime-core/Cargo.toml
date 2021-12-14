@@ -22,10 +22,13 @@ smallvec = "0.6"
 bincode = "1.1"
 wasm-debug = { optional = true, version = "0.1.0" }
 target-lexicon = "0.9"
-rkyv = "0.7.26"
+
+[dependencies.rkyv]
+version = "0.7.26"
+features = ["indexmap"]
 
 [dependencies.indexmap]
-version = "1.2"
+version = "1.7"
 features = ["serde-1"]
 
 # Dependencies for caching.
