@@ -2,8 +2,9 @@
 //! convert to other represenations.
 
 use crate::{memory::MemoryType, module::ModuleInfo, structures::TypedIndex, units::Pages};
-use std::{borrow::Cow, convert::TryFrom};
+use std::convert::TryFrom;
 use rkyv::{Archive, Serialize as RkyvSerialize, Deserialize as RkyvDeserialize};
+use crate::wrapped_cow::WrappedCow;
 
 /// Represents a WebAssembly type.
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, Archive, RkyvSerialize, RkyvDeserialize)]
@@ -356,16 +357,16 @@ impl MemoryDescriptor {
 /// in a wasm module or exposed to wasm by the host.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, Archive, RkyvSerialize, RkyvDeserialize)]
 pub struct FuncSig {
-    params: Cow<'static, [Type]>,
-    returns: Cow<'static, [Type]>,
+    params: WrappedCow<'static, [Type]>,
+    returns: WrappedCow<'static, [Type]>,
 }
 
 impl FuncSig {
     /// Creates a new function signatures with the given parameter and return types.
     pub fn new<Params, Returns>(params: Params, returns: Returns) -> Self
     where
-        Params: Into<Cow<'static, [Type]>>,
-        Returns: Into<Cow<'static, [Type]>>,
+        Params: Into<WrappedCow<'static, [Type]>>,
+        Returns: Into<WrappedCow<'static, [Type]>>,
     {
         Self {
             params: params.into(),
