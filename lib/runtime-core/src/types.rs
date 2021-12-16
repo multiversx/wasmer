@@ -376,12 +376,12 @@ impl FuncSig {
 
     /// Parameter types.
     pub fn params(&self) -> &[Type] {
-        &self.params
+        &self.params.0
     }
 
     /// Return types.
     pub fn returns(&self) -> &[Type] {
-        &self.returns
+        &self.returns.0
     }
 
     /// Returns true if parameter types match the function signature.
