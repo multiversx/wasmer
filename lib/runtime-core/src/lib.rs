@@ -61,8 +61,6 @@ pub mod typed_func;
 pub mod types;
 pub mod units;
 pub mod vm;
-pub mod wrapped_cow;
-pub mod wrapped_index_map;
 #[doc(hidden)]
 pub mod vmcalls;
 #[cfg(all(unix, target_arch = "x86_64"))]

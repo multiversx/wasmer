@@ -2,9 +2,8 @@
 //! convert to other represenations.
 
 use crate::{memory::MemoryType, module::ModuleInfo, structures::TypedIndex, units::Pages};
-use std::convert::TryFrom;
-use rkyv::{Archive, Serialize as RkyvSerialize, Deserialize as RkyvDeserialize};
-use crate::wrapped_cow::WrappedCow;
+use std::{borrow::Cow, convert::TryFrom};
+use rkyv::{Archive, Serialize as RkyvSerialize, Deserialize as RkyvDeserialize, with::AsOwned};
 
 /// Represents a WebAssembly type.
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, Archive, RkyvSerialize, RkyvDeserialize)]
@@ -357,16 +356,18 @@ impl MemoryDescriptor {
 /// in a wasm module or exposed to wasm by the host.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, Archive, RkyvSerialize, RkyvDeserialize)]
 pub struct FuncSig {
-    params: WrappedCow<'static, [Type]>,
-    returns: WrappedCow<'static, [Type]>,
+    #[with(AsOwned)]
+    params: Cow<'static, [Type]>,
+    #[with(AsOwned)]
+    returns: Cow<'static, [Type]>,
 }
 
 impl FuncSig {
     /// Creates a new function signatures with the given parameter and return types.
     pub fn new<Params, Returns>(params: Params, returns: Returns) -> Self
     where
-        Params: Into<WrappedCow<'static, [Type]>>,
-        Returns: Into<WrappedCow<'static, [Type]>>,
+        Params: Into<Cow<'static, [Type]>>,
+        Returns: Into<Cow<'static, [Type]>>,
     {
         Self {
             params: params.into(),
@@ -376,12 +377,12 @@ impl FuncSig {
 
     /// Parameter types.
     pub fn params(&self) -> &[Type] {
-        &self.params.0
+        &self.params
     }
 
     /// Return types.
     pub fn returns(&self) -> &[Type] {
-        &self.returns.0
+        &self.returns
     }
 
     /// Returns true if parameter types match the function signature.
