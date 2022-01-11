@@ -12,7 +12,7 @@ unsafe impl Send for Memory {}
 unsafe impl Sync for Memory {}
 
 /// Data for a sized and protected region of memory.
-#[derive(Debug, Archive, RkyvSerialize, RkyvDeserialize)]
+#[derive(Debug)]
 pub struct Memory {
     ptr: *mut u8,
     size: usize,

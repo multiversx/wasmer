@@ -2,7 +2,7 @@
 //! serializing compiled wasm code to a binary format.  The binary format can be persisted,
 //! and loaded to allow skipping compilation and fast startup.
 
-use crate::{module::ModuleInfo, sys::Memory};
+use crate::{module::ModuleInfo, sys::Memory, sys::ArchivableMemory};
 use rkyv::{Archive, Serialize as RkyvSerialize, Deserialize as RkyvDeserialize};
 use std::{io, mem, slice};
 
@@ -159,6 +159,8 @@ pub struct ArtifactInner {
     info: Box<ModuleInfo>,
     #[serde(with = "serde_bytes")]
     backend_metadata: Box<[u8]>,
+
+    #[with(ArchivableMemory)]
     compiled_code: Memory,
 }
 

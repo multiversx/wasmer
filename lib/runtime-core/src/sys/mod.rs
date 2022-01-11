@@ -1,3 +1,5 @@
+mod memory_rkyv;
+
 #[cfg(unix)]
 mod unix;
 
@@ -9,6 +11,8 @@ pub use self::unix::*;
 
 #[cfg(windows)]
 pub use self::windows::*;
+
+pub use self::memory_rkyv::*;
 
 use serde::{
     de::{self, SeqAccess, Visitor},
