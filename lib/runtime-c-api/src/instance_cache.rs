@@ -3,6 +3,13 @@ use crate::{
     instance::{wasmer_instance_t, wasmer_compilation_options_t, CompilationOptions, prepare_middleware_chain_generator, get_compiler},
     wasmer_result_t,
 };
+
+use rkyv::{
+    Deserialize as RkyvDeserialize,
+    ser::Serializer,
+    ser::serializers::AllocSerializer,
+};
+
 use wasmer_runtime_core::{cache::Artifact, import::ImportObject};
 use std::slice;
 use crate::import::GLOBAL_IMPORT_OBJECT;
@@ -58,6 +65,43 @@ pub unsafe extern "C" fn wasmer_instance_cache(
 
 #[allow(clippy::cast_ptr_alignment)]
 #[no_mangle]
+pub unsafe extern "C" fn wasmer_instance_cache_rkyv(
+    instance: *mut wasmer_instance_t,
+    cache_bytes: *mut *const u8,
+    cache_len: *mut u32,
+) -> wasmer_result_t {
+    if instance.is_null() {
+        update_last_error(CApiError {
+            msg: "null instance".to_string(),
+        });
+        return wasmer_result_t::WASMER_ERROR;
+    }
+
+    let instance = &mut *(instance as *mut wasmer_runtime::Instance);
+    let module = instance.module();
+    match module.cache() {
+        Err(error) => {
+            update_last_error(CApiError {
+                msg: format!("{:?}", error),
+            });
+            return wasmer_result_t::WASMER_ERROR;
+        }
+        Ok(artifact) => {
+            let serialized = serialize_artifact_to_rkyv(artifact);
+            if !serialized.is_empty() {
+                let buf = serialized.into_boxed_slice();
+                *cache_bytes = buf.as_ptr();
+                *cache_len = buf.len() as u32;
+                std::mem::forget(buf);
+            }
+        }
+    };
+
+    wasmer_result_t::WASMER_OK
+}
+
+#[allow(clippy::cast_ptr_alignment)]
+#[no_mangle]
 pub unsafe extern "C" fn wasmer_instance_from_cache(
     instance: *mut *mut wasmer_instance_t,
     cache_bytes: *mut u8,
@@ -75,22 +119,25 @@ pub unsafe extern "C" fn wasmer_instance_from_cache(
     let options: &CompilationOptions = &*(options as *const CompilationOptions);
     let compiler_chain_generator = prepare_middleware_chain_generator(&options);
     let compiler = get_compiler(compiler_chain_generator);
-    let new_module = match Artifact::deserialize(bytes) {
-        Ok(serialized_cache) => match wasmer_runtime_core::load_cache_with(serialized_cache, &compiler) {
-            Ok(deserialized_module) => {
-                deserialized_module
-            }
-            Err(_) => {
-                update_last_error(CApiError {
-                    msg: "Failed to compile the serialized module".to_string(),
-                });
-                return wasmer_result_t::WASMER_ERROR;
-            }
-        },
-        Err(err) => {
-            println!("{:?}", err);
+
+    let artifact = match Artifact::deserialize(bytes) {
+        Ok(deserialized_artifact) => deserialized_artifact,
+        Err(_) => {
             update_last_error(CApiError {
-                msg: "Failed to deserialize the module".to_string(),
+                msg: "Failed to compile the serialized module".to_string(),
+            });
+            return wasmer_result_t::WASMER_ERROR;
+        }
+    };
+
+
+    let new_module = match wasmer_runtime_core::load_cache_with(artifact, &compiler) {
+        Ok(deserialized_module) => {
+            deserialized_module
+        }
+        Err(_) => {
+            update_last_error(CApiError {
+                msg: "Failed to compile the serialized module".to_string(),
             });
             return wasmer_result_t::WASMER_ERROR;
         }
@@ -109,3 +156,19 @@ pub unsafe extern "C" fn wasmer_instance_from_cache(
     *instance = Box::into_raw(Box::new(new_instance)) as *mut wasmer_instance_t;
     wasmer_result_t::WASMER_OK
 }
+
+fn serialize_artifact_to_rkyv(artifact: Artifact) -> Vec<u8> {
+    let mut serializer = AllocSerializer::<4096>::default();
+    serializer.serialize_value(&artifact).unwrap();
+    let serialized = serializer.into_serializer().into_inner().to_vec();
+    assert!(serialized.len() > 0);
+
+    serialized
+}
+
+fn deserialize_artifact_from_rkyv(bytes: &[u8]) -> Artifact {
+    let archived = unsafe { rkyv::archived_root::<Artifact>(&bytes[..]) };
+    let artifact: Artifact = archived.deserialize(&mut rkyv::Infallible).unwrap().into_inner();
+    artifact
+}
+

@@ -676,6 +676,10 @@ wasmer_result_t wasmer_instance_cache(wasmer_instance_t *instance,
                                       const uint8_t **cache_bytes,
                                       uint32_t *cache_len);
 
+wasmer_result_t wasmer_instance_cache_rkyv(wasmer_instance_t *instance,
+                                           const uint8_t **cache_bytes,
+                                           uint32_t *cache_len);
+
 /// Calls an exported function of a WebAssembly instance by `name`
 /// with the provided parameters. The exported function results are
 /// stored on the provided `results` pointer.

@@ -254,6 +254,9 @@ impl Clone for Memory {
 /// Kinds of memory protection.
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, Archive, RkyvSerialize, RkyvDeserialize)]
 #[allow(dead_code)]
+#[archive(compare(PartialEq))]
+#[archive_attr(derive(Debug))]
+#[archive_attr(derive(PartialEq))]
 pub enum Protect {
     /// Read/write/exec allowed.
     None,

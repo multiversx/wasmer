@@ -2108,6 +2108,7 @@ version = "0.15.0"
 dependencies = [
  "cbindgen",
  "libc",
+ "rkyv",
  "wasmer-clif-backend",
  "wasmer-emscripten",
  "wasmer-llvm-backend",

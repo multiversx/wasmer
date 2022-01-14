@@ -17,6 +17,10 @@ crate-type = ["cdylib", "rlib", "staticlib"]
 [dependencies]
 libc = "0.2.60"
 
+[dependencies.rkyv]
+version = "0.7.26"
+features = ["indexmap"]
+
 [dependencies.wasmer-runtime]
 default-features = false
 path = "../runtime"
