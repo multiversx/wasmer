@@ -76,10 +76,10 @@ where
     }
 }
 
-impl<D: Fallible + ?Sized> DeserializeWith<CompactMemory, Memory, D> for ArchivableMemory
+impl<D: Fallible + ?Sized> DeserializeWith<ArchivedCompactMemory, Memory, D> for ArchivableMemory
 {
-    fn deserialize_with(archived_memory: &CompactMemory, _: &mut D) -> Result<Memory, D::Error> {
-        let original_protection = archived_memory.protection;
+    fn deserialize_with(archived_memory: &ArchivedCompactMemory, deserializer: &mut D) -> Result<Memory, D::Error> {
+        let original_protection = archived_memory.protection.deserialize(deserializer)?;
         let bytes = archived_memory.contents.as_slice();
 
         let mut memory = Memory::with_size_protect(bytes.len(), Protect::ReadWrite)

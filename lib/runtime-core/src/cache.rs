@@ -237,13 +237,17 @@ pub const WASMER_VERSION_HASH: &'static str =
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::Artifact;
+    use super::ArtifactInner;
+    use super::Memory;
+    use super::ModuleInfo;
     use std::collections::HashMap;
     use crate::structures::Map;
     use crate::module::StringTable;
     use rkyv::ser::serializers::AllocSerializer;
     use rkyv::ser::Serializer as RkyvSerializer;
-    use rkyv::with::With;
+    use rkyv::Archive;
+    use rkyv::Deserialize;
     use rkyv::Archived;
     // use crate::sys::{ArchivableMemory, CompactMemory};
 
@@ -298,7 +302,9 @@ mod tests {
         let archived: &Archived<ArtifactInner> 
             = unsafe { rkyv::archived_root::<ArtifactInner>(&serialized[..]) };
 
-        let deser_result: ArtifactInner = archived.deserialize(&mut rkyv::Infallible).unwrap();
+        let deserialized_artifact = Deserialize::<ArtifactInner, _>::deserialize(archived, &mut rkyv::Infallible).unwrap();
+        unsafe { assert_eq!(deserialized_artifact.compiled_code.as_slice(), artifact_inner.compiled_code.as_slice()) };
+        assert_eq!(deserialized_artifact.compiled_code.protection(), artifact_inner.compiled_code.protection());
     }
 
     fn make_empty_module_info() -> ModuleInfo {
