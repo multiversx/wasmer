@@ -115,7 +115,7 @@ mod tests {
     }
 
     #[test]
-    fn test_rkyv_memory() {
+    fn test_rkyv_compact_memory() {
         let bytes = make_test_bytes();
         let memory = make_test_memory(&bytes);
 

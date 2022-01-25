@@ -244,7 +244,8 @@ mod tests {
     use rkyv::ser::serializers::AllocSerializer;
     use rkyv::ser::Serializer as RkyvSerializer;
     use rkyv::with::With;
-    use crate::sys::{ArchivableMemory, CompactMemory};
+    use rkyv::Archived;
+    // use crate::sys::{ArchivableMemory, CompactMemory};
 
     #[test]
     fn test_rkyv_artifact() {
@@ -264,16 +265,40 @@ mod tests {
         assert!(serialized.len() > 0);
         print!("{:?}", serialized);
 
-        let archived: &<Artifact as Archive>::Archived 
+        let _: &<Artifact as Archive>::Archived 
             = unsafe { rkyv::archived_root::<Artifact>(&serialized[..]) };
 
-        let deser_result: Result<Artifact, std::convert::Infallible> 
-            = archived.deserialize(&mut rkyv::Infallible);
+        // let deser_result: Result<With<_, _>, std::convert::Infallible> 
+        //     = archived.deserialize(&mut rkyv::Infallible);
 
         // let wrapped_artifact = deser_result.unwrap();
         // let deserialized_artifact: Artifact = wrapped_artifact.into_inner();
         // let deserialized_compiled_code = unsafe { deserialized_artifact.inner.compiled_code.as_slice() };
         // assert_eq!(deserialized_compiled_code, bytes);
+    }
+
+    #[test]
+    fn test_rkyv_artifact_inner() {
+        let bytes = make_test_bytes();
+        let memory = make_test_memory(&bytes);
+
+        let module_info = make_empty_module_info();
+        let artifact_inner = ArtifactInner {
+            info: Box::new(module_info),
+            backend_metadata: b"test_backend".to_vec().into_boxed_slice(),
+            compiled_code: memory,
+        };
+
+        let mut serializer = AllocSerializer::<4096>::default();
+        serializer.serialize_value(&artifact_inner).unwrap();
+        let serialized = serializer.into_serializer().into_inner();
+        assert!(serialized.len() > 0);
+        print!("{:?}", serialized);
+
+        let archived: &Archived<ArtifactInner> 
+            = unsafe { rkyv::archived_root::<ArtifactInner>(&serialized[..]) };
+
+        let deser_result: ArtifactInner = archived.deserialize(&mut rkyv::Infallible).unwrap();
     }
 
     fn make_empty_module_info() -> ModuleInfo {
