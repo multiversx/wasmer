@@ -273,9 +273,6 @@ mod tests {
         let deserialized_artifact = Deserialize::<Artifact, _>::deserialize(archived, &mut rkyv::Infallible).unwrap();
         unsafe { assert_eq!(deserialized_artifact.inner.compiled_code.as_slice(), artifact.inner.compiled_code.as_slice()) };
         assert_eq!(deserialized_artifact.inner.compiled_code.protection(), artifact.inner.compiled_code.protection());
-
-        // let deserialized_compiled_code = unsafe { deserialized_artifact.inner.compiled_code.as_slice() };
-        // assert_eq!(deserialized_compiled_code, bytes);
     }
 
     #[test]

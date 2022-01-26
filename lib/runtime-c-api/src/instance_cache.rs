@@ -89,10 +89,9 @@ pub unsafe extern "C" fn wasmer_instance_cache_rkyv(
         Ok(artifact) => {
             let serialized = serialize_artifact_to_rkyv(artifact);
             if !serialized.is_empty() {
-                let buf = serialized.into_boxed_slice();
-                *cache_bytes = buf.as_ptr();
-                *cache_len = buf.len() as u32;
-                std::mem::forget(buf);
+                *cache_bytes = serialized.as_ptr();
+                *cache_len = serialized.len() as u32;
+                std::mem::forget(serialized);
             }
         }
     };
@@ -157,10 +156,58 @@ pub unsafe extern "C" fn wasmer_instance_from_cache(
     wasmer_result_t::WASMER_OK
 }
 
-fn serialize_artifact_to_rkyv(artifact: Artifact) -> Vec<u8> {
+#[allow(clippy::cast_ptr_alignment)]
+#[no_mangle]
+pub unsafe extern "C" fn wasmer_instance_from_cache_rkyv(
+    instance: *mut *mut wasmer_instance_t,
+    cache_bytes: *mut u8,
+    cache_len: u32,
+    options: *const wasmer_compilation_options_t,
+) -> wasmer_result_t {
+    if cache_bytes.is_null() {
+        update_last_error(CApiError {
+            msg: "cache bytes ptr is null".to_string(),
+        });
+        return wasmer_result_t::WASMER_ERROR;
+    }
+
+    let bytes: &[u8] = slice::from_raw_parts(cache_bytes, cache_len as usize);
+    let options: &CompilationOptions = &*(options as *const CompilationOptions);
+    let compiler_chain_generator = prepare_middleware_chain_generator(&options);
+    let compiler = get_compiler(compiler_chain_generator);
+
+    let artifact = deserialize_artifact_from_rkyv(bytes);
+
+    let new_module = match wasmer_runtime_core::load_cache_with(artifact, &compiler) {
+        Ok(deserialized_module) => {
+            deserialized_module
+        }
+        Err(_) => {
+            update_last_error(CApiError {
+                msg: "Failed to compile the serialized module".to_string(),
+            });
+            return wasmer_result_t::WASMER_ERROR;
+        }
+    };
+
+    let import_object: &mut ImportObject = &mut *(GLOBAL_IMPORT_OBJECT as *mut ImportObject);
+    let result_instantiation = new_module.instantiate(&import_object);
+    let mut new_instance = match result_instantiation {
+        Ok(instance) => instance,
+        Err(error) => {
+            update_last_error(error);
+            return wasmer_result_t::WASMER_ERROR;
+        }
+    };
+    metering::set_points_limit(&mut new_instance, options.gas_limit);
+    *instance = Box::into_raw(Box::new(new_instance)) as *mut wasmer_instance_t;
+    wasmer_result_t::WASMER_OK
+}
+
+fn serialize_artifact_to_rkyv(artifact: Artifact) -> Box<[u8]> {
     let mut serializer = AllocSerializer::<4096>::default();
     serializer.serialize_value(&artifact).unwrap();
-    let serialized = serializer.into_serializer().into_inner().to_vec();
+    let serialized = serializer.into_serializer().into_inner().into_boxed_slice();
     assert!(serialized.len() > 0);
 
     serialized
@@ -168,7 +215,7 @@ fn serialize_artifact_to_rkyv(artifact: Artifact) -> Vec<u8> {
 
 fn deserialize_artifact_from_rkyv(bytes: &[u8]) -> Artifact {
     let archived = unsafe { rkyv::archived_root::<Artifact>(&bytes[..]) };
-    let artifact: Artifact = archived.deserialize(&mut rkyv::Infallible).unwrap().into_inner();
+    let artifact: Artifact = RkyvDeserialize::<Artifact, _>::deserialize(archived, &mut rkyv::Infallible).unwrap();
     artifact
 }
 

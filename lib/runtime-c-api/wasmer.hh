@@ -884,6 +884,11 @@ wasmer_result_t wasmer_instance_from_cache(wasmer_instance_t **instance,
                                            uint32_t cache_len,
                                            const wasmer_compilation_options_t *options);
 
+wasmer_result_t wasmer_instance_from_cache_rkyv(wasmer_instance_t **instance,
+                                                uint8_t *cache_bytes,
+                                                uint32_t cache_len,
+                                                const wasmer_compilation_options_t *options);
+
 uint64_t wasmer_instance_get_points_used(wasmer_instance_t *instance);
 
 uint64_t wasmer_instance_get_runtime_breakpoint_value(wasmer_instance_t *instance);
