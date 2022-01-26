@@ -6,6 +6,7 @@ use crate::sys::windows::{Memory, Protect};
 
 use rkyv::{
     Archive, 
+    Archived,
     Fallible,
     Serialize as RkyvSerialize,
     Deserialize as RkyvDeserialize,
@@ -76,9 +77,9 @@ where
     }
 }
 
-impl<D: Fallible + ?Sized> DeserializeWith<ArchivedCompactMemory, Memory, D> for ArchivableMemory
+impl<D: Fallible + ?Sized> DeserializeWith<Archived<CompactMemory>, Memory, D> for ArchivableMemory
 {
-    fn deserialize_with(archived_memory: &ArchivedCompactMemory, deserializer: &mut D) -> Result<Memory, D::Error> {
+    fn deserialize_with(archived_memory: &Archived<CompactMemory>, deserializer: &mut D) -> Result<Memory, D::Error> {
         let original_protection = archived_memory.protection.deserialize(deserializer)?;
         let bytes = archived_memory.contents.as_slice();
 
