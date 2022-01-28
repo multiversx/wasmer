@@ -20,6 +20,12 @@ use std::{
     usize,
 };
 
+use rkyv::{
+    Archive,
+    Serialize as RkyvSerialize,
+    Deserialize as RkyvDeserialize,
+};
+
 use bincode;
 
 use wasmer_runtime_core::{
@@ -253,7 +259,10 @@ pub struct X64ExecutionContext {
 
 /// On-disk cache format.
 /// Offsets are relative to the start of the executable image.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Archive, RkyvSerialize, RkyvDeserialize)]
+#[archive(compare(PartialEq))]
+#[archive_attr(derive(Debug))]
+#[archive_attr(derive(PartialEq))]
 pub struct CacheImage {
     /// The executable image.
     code: Vec<u8>,

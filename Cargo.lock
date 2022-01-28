@@ -2170,6 +2170,7 @@ dependencies = [
  "lazy_static",
  "libc",
  "nix",
+ "rkyv",
  "serde",
  "serde_derive",
  "smallvec 0.6.13",
