@@ -18,7 +18,7 @@ use rkyv::{
 pub struct RegisterIndex(pub usize);
 
 /// A kind of wasm or constant value
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, Archive, RkyvSerialize, RkyvDeserialize)]
 pub enum WasmAbstractValue {
     /// A wasm runtime value
     Runtime,
@@ -44,7 +44,7 @@ pub struct MachineState {
 }
 
 /// A diff of two `MachineState`s.
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Archive, RkyvSerialize, RkyvDeserialize)]
 pub struct MachineStateDiff {
     /// Last.
     pub last: Option<usize>,
@@ -114,7 +114,7 @@ impl From<MachineValue> for MachineSubvalue {
             MachineValue::VmctxDeref(v) => MachineSubvalue::VmctxDeref(v),
             MachineValue::WasmStack(i) => MachineSubvalue::WasmStack(i),
             MachineValue::WasmLocal(i) => MachineSubvalue::WasmLocal(i),
-            _ => unimplemented!("invalid kind of MachineValue to convert to MachineSubvalue"),
+            _ => unreachable!("invalid kind of MachineValue to convert to MachineSubvalue"),
         }
     }
 }
@@ -145,7 +145,7 @@ pub struct FunctionStateMap {
 }
 
 /// A kind of suspend offset.
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, Archive, RkyvSerialize, RkyvDeserialize)]
 pub enum SuspendOffset {
     /// A loop.
     Loop(usize),
@@ -156,7 +156,7 @@ pub enum SuspendOffset {
 }
 
 /// Info for an offset.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Archive, RkyvSerialize, RkyvDeserialize)]
 pub struct OffsetInfo {
     /// End offset.
     pub end_offset: usize, // excluded bound

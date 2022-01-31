@@ -259,10 +259,7 @@ pub struct X64ExecutionContext {
 
 /// On-disk cache format.
 /// Offsets are relative to the start of the executable image.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Archive, RkyvSerialize, RkyvDeserialize)]
-#[archive(compare(PartialEq))]
-#[archive_attr(derive(Debug))]
-#[archive_attr(derive(PartialEq))]
+#[derive(Clone, Debug, Serialize, Deserialize, Archive, RkyvSerialize, RkyvDeserialize)]
 pub struct CacheImage {
     /// The executable image.
     code: Vec<u8>,
