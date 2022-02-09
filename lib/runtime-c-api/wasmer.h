@@ -861,10 +861,6 @@ wasmer_result_t wasmer_instance_cache(wasmer_instance_t *instance,
                                       const uint8_t **cache_bytes,
                                       uint32_t *cache_len);
 
-wasmer_result_t wasmer_instance_cache_rkyv(wasmer_instance_t *instance,
-                                           const uint8_t **cache_bytes,
-                                           uint32_t *cache_len);
-
 /**
  * Calls an exported function of a WebAssembly instance by `name`
  * with the provided parameters. The exported function results are
@@ -1033,6 +1029,10 @@ const wasmer_memory_t *wasmer_instance_context_memory(const wasmer_instance_cont
  */
 void wasmer_instance_destroy(wasmer_instance_t *instance);
 
+void wasmer_instance_disable_rkyv(void);
+
+void wasmer_instance_enable_rkyv(void);
+
 /**
  * Gets all the exports of the given WebAssembly instance.
  *
@@ -1082,11 +1082,6 @@ wasmer_result_t wasmer_instance_from_cache(wasmer_instance_t **instance,
                                            uint8_t *cache_bytes,
                                            uint32_t cache_len,
                                            const wasmer_compilation_options_t *options);
-
-wasmer_result_t wasmer_instance_from_cache_rkyv(wasmer_instance_t **instance,
-                                                uint8_t *cache_bytes,
-                                                uint32_t cache_len,
-                                                const wasmer_compilation_options_t *options);
 
 uint64_t wasmer_instance_get_points_used(wasmer_instance_t *instance);
 

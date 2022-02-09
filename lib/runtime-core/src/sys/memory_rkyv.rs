@@ -24,6 +24,7 @@ pub struct ArchivableMemory;
 #[archive_attr(derive(PartialEq))]
 pub struct CompactMemory {
     contents: Vec<u8>,
+    content_size: usize,
     protection: Protect,
 }
 
@@ -32,6 +33,7 @@ impl CompactMemory {
     pub unsafe fn from_memory(memory: &Memory) -> Self {
         CompactMemory {
             contents: memory.as_slice().to_vec(),
+            content_size: memory.content_size(),
             protection: memory.protection(),
         }
     }
@@ -50,6 +52,8 @@ impl CompactMemory {
                 .protect(.., self.protection)
                 .expect("Could not protect memory as its original protection");
         }
+
+        memory.set_content_size(self.content_size);
 
         memory
     }
@@ -80,21 +84,8 @@ where
 impl<D: Fallible + ?Sized> DeserializeWith<Archived<CompactMemory>, Memory, D> for ArchivableMemory
 {
     fn deserialize_with(archived_memory: &Archived<CompactMemory>, deserializer: &mut D) -> Result<Memory, D::Error> {
-        let original_protection = archived_memory.protection.deserialize(deserializer)?;
-        let bytes = archived_memory.contents.as_slice();
-
-        let mut memory = Memory::with_size_protect(bytes.len(), Protect::ReadWrite)
-            .expect("Could not create a memory");
-
-        unsafe {
-            memory.as_slice_mut().copy_from_slice(&*bytes);
-
-            if memory.protection() != original_protection {
-                memory
-                    .protect(.., original_protection)
-                    .expect("Could not protect memory as its original protection");
-            }
-        }
+        let compact_memory: CompactMemory = archived_memory.deserialize(deserializer)?;
+        let memory = unsafe { compact_memory.into_memory() };
 
         Ok(memory)
     }
@@ -128,7 +119,6 @@ mod tests {
         assert!(serialized.len() > 0);
 
         let archived = unsafe { rkyv::archived_root::<CompactMemory>(&serialized[..]) };
-        assert_eq!(archived, &compact_memory);
 
         let deserialized: CompactMemory = archived.deserialize(&mut rkyv::Infallible).unwrap();
         assert_eq!(deserialized, compact_memory);

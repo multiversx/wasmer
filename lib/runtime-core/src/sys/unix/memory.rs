@@ -18,6 +18,7 @@ pub struct Memory {
     size: usize,
     protection: Protect,
     fd: Option<Arc<RawFd>>,
+    content_size: usize,
 }
 
 impl Memory {
@@ -54,6 +55,7 @@ impl Memory {
                 size: file_len as usize,
                 protection,
                 fd: Some(Arc::new(raw_fd)),
+                content_size: 0,
             })
         }
     }
@@ -66,6 +68,7 @@ impl Memory {
                 size: 0,
                 protection,
                 fd: None,
+                content_size: 0,
             });
         }
 
@@ -90,8 +93,17 @@ impl Memory {
                 size,
                 protection,
                 fd: None,
+                content_size: 0,
             })
         }
+    }
+
+    /// Create a new memory with the given contents size and protection.
+    /// Used when the size of the contents must be tracked (e.g. for rkyv deserialization).
+    pub fn with_content_size_protect(content_size: usize, protection: Protect) -> Result<Self, String> {
+        let mut memory = Self::with_size_protect(content_size, protection)?;
+        memory.set_content_size(content_size);
+        Ok(memory)
     }
 
     /// Create a new memory with the given size.
@@ -102,6 +114,7 @@ impl Memory {
                 size: 0,
                 protection: Protect::None,
                 fd: None,
+                content_size: 0,
             });
         }
 
@@ -129,6 +142,7 @@ impl Memory {
                 size,
                 protection: Protect::None,
                 fd: None,
+                content_size: 0,
             })
         }
     }
@@ -173,6 +187,12 @@ impl Memory {
         }
     }
 
+    /// Set the content size of this memory. Must be set manually, as this is different in each
+    /// case.
+    pub fn set_content_size(&mut self, size: usize) {
+        self.content_size = size;
+    }
+
     /// Split this memory into multiple memories by the given offset.
     pub fn split_at(mut self, offset: usize) -> (Memory, Memory) {
         let page_size = page_size::get();
@@ -187,6 +207,7 @@ impl Memory {
                 size: second_size,
                 protection: self.protection,
                 fd: self.fd.clone(),
+                content_size: 0,
             };
 
             (self, second)
@@ -200,9 +221,19 @@ impl Memory {
         self.size
     }
 
+    /// Gets the size of the actual contents of this memory.
+    pub fn content_size(&self) -> usize {
+        self.content_size
+    }
+
     /// Gets a slice for this memory.
     pub unsafe fn as_slice(&self) -> &[u8] {
         slice::from_raw_parts(self.ptr, self.size)
+    }
+
+    /// Gets a slice for this memory, bounded by content_size.
+    pub unsafe fn as_slice_contents(&self) -> &[u8] {
+        slice::from_raw_parts(self.ptr, self.content_size)
     }
 
     /// Gets a mutable slice for this memory.

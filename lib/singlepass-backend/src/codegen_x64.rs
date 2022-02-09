@@ -22,8 +22,11 @@ use std::{
 
 use rkyv::{
     Archive,
+    Archived,
     Serialize as RkyvSerialize,
     Deserialize as RkyvDeserialize,
+    ser::Serializer,
+    ser::serializers::AllocSerializer,
 };
 
 use bincode;
@@ -66,6 +69,8 @@ pub const INLINE_BREAKPOINT_SIZE_X86_SINGLEPASS: usize = 7;
 
 /// Inline breakpoint size for aarch64.
 pub const INLINE_BREAKPOINT_SIZE_AARCH64_SINGLEPASS: usize = 12;
+
+pub static mut USE_RKYV_SERIALIZATION: bool = false;
 
 static BACKEND_ID: &str = "singlepass";
 
@@ -306,7 +311,7 @@ pub struct SinglepassCache {
 
 impl CacheGen for SinglepassCache {
     fn generate_cache(&self) -> Result<(Box<[u8]>, Memory), CacheError> {
-        let mut memory = Memory::with_size_protect(self.buffer.len(), Protect::ReadWrite)
+        let mut memory = Memory::with_content_size_protect(self.buffer.len(), Protect::ReadWrite)
             .map_err(CacheError::SerializeError)?;
 
         let buffer = &*self.buffer;
@@ -848,8 +853,19 @@ impl ModuleCodeGenerator<X64FunctionCode, X64ExecutionContext, CodegenError>
             exception_table: exception_table.clone(),
         };
 
-        let cache = SinglepassCache {
-            buffer: Arc::from(bincode::serialize(&cache_image).unwrap().into_boxed_slice()),
+        let cache = if unsafe { USE_RKYV_SERIALIZATION } {
+            let mut serializer = AllocSerializer::<4096>::default();
+            serializer.serialize_value(&cache_image).unwrap();
+            let archived_cache_image = serializer.into_serializer().into_inner();
+
+            SinglepassCache {
+                buffer: Arc::from(archived_cache_image.as_slice()),
+            }
+        } else {
+            let serialized_cache_image = bincode::serialize(&cache_image).unwrap().into_boxed_slice();
+            SinglepassCache {
+                buffer: Arc::from(serialized_cache_image),
+            }
         };
 
         Ok((
@@ -940,8 +956,15 @@ impl ModuleCodeGenerator<X64FunctionCode, X64ExecutionContext, CodegenError>
     unsafe fn from_cache(artifact: Artifact, _: Token) -> Result<ModuleInner, CacheError> {
         let (info, _, memory) = artifact.consume();
 
-        let cache_image: CacheImage = bincode::deserialize(memory.as_slice())
-            .map_err(|x| CacheError::DeserializeError(format!("{:?}", x)))?;
+        let cache_image: CacheImage = if USE_RKYV_SERIALIZATION {
+            let memory_contents = memory.as_slice_contents();
+            let archived_cache_image: &Archived<CacheImage>
+                = rkyv::archived_root::<CacheImage>(memory_contents);
+            RkyvDeserialize::<CacheImage, _>::deserialize(archived_cache_image, &mut rkyv::Infallible).unwrap()
+        } else {
+            bincode::deserialize(memory.as_slice())
+                .map_err(|x| CacheError::DeserializeError(format!("{:?}", x)))?
+        };
 
         let mut code_mem = CodeMemory::new(cache_image.code.len());
         code_mem[0..cache_image.code.len()].copy_from_slice(&cache_image.code);
