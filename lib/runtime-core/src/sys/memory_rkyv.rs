@@ -17,7 +17,7 @@ use rkyv::{
 /// A serializable wrapper for Memory.
 pub struct ArchivableMemory;
 
-/// The archived contents of a wrapped Memory.
+/// The archived contents of a Memory.
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, PartialEq)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
