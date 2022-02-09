@@ -18,7 +18,7 @@ pub struct Memory {
     size: usize,
     protection: Protect,
     fd: Option<Arc<RawFd>>,
-    content_size: usize,
+    content_size: u32,
 }
 
 impl Memory {
@@ -100,8 +100,8 @@ impl Memory {
 
     /// Create a new memory with the given contents size and protection.
     /// Used when the size of the contents must be tracked (e.g. for rkyv deserialization).
-    pub fn with_content_size_protect(content_size: usize, protection: Protect) -> Result<Self, String> {
-        let mut memory = Self::with_size_protect(content_size, protection)?;
+    pub fn with_content_size_protect(content_size: u32, protection: Protect) -> Result<Self, String> {
+        let mut memory = Self::with_size_protect(content_size as usize, protection)?;
         memory.set_content_size(content_size);
         Ok(memory)
     }
@@ -189,7 +189,7 @@ impl Memory {
 
     /// Set the content size of this memory. Must be set manually, as this is different in each
     /// case.
-    pub fn set_content_size(&mut self, size: usize) {
+    pub fn set_content_size(&mut self, size: u32) {
         self.content_size = size;
     }
 
@@ -222,7 +222,7 @@ impl Memory {
     }
 
     /// Gets the size of the actual contents of this memory.
-    pub fn content_size(&self) -> usize {
+    pub fn content_size(&self) -> u32 {
         self.content_size
     }
 
@@ -233,7 +233,7 @@ impl Memory {
 
     /// Gets a slice for this memory, bounded by content_size.
     pub unsafe fn as_slice_contents(&self) -> &[u8] {
-        slice::from_raw_parts(self.ptr, self.content_size)
+        slice::from_raw_parts(self.ptr, self.content_size as usize)
     }
 
     /// Gets a mutable slice for this memory.

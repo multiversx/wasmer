@@ -18,6 +18,7 @@ use std::{
     slice,
     sync::{Arc, RwLock},
     usize,
+    convert::TryInto,
 };
 
 use rkyv::{
@@ -311,7 +312,8 @@ pub struct SinglepassCache {
 
 impl CacheGen for SinglepassCache {
     fn generate_cache(&self) -> Result<(Box<[u8]>, Memory), CacheError> {
-        let mut memory = Memory::with_content_size_protect(self.buffer.len(), Protect::ReadWrite)
+        let content_size: u32 = self.buffer.len().try_into().unwrap();
+        let mut memory = Memory::with_content_size_protect(content_size, Protect::ReadWrite)
             .map_err(CacheError::SerializeError)?;
 
         let buffer = &*self.buffer;

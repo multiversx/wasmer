@@ -24,7 +24,7 @@ pub struct ArchivableMemory;
 #[archive_attr(derive(PartialEq))]
 pub struct CompactMemory {
     contents: Vec<u8>,
-    content_size: usize,
+    content_size: u32,
     protection: Protect,
 }
 
