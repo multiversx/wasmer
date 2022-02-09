@@ -204,35 +204,3 @@ fn deserialize_artifact_with_rkyv(bytes: &[u8]) -> Result<Artifact, CacheError> 
 fn deserialize_artifact_with_serde(bytes: &[u8]) -> Result<Artifact, CacheError> {
     Artifact::deserialize(bytes)
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_simple_instantiation() {
-        let bytecode = get_wasm();
-
-        let options = CompilationOptions {
-            gas_limit: 1000,
-            unmetered_locals: 100,
-            max_memory_grow: 10,
-            max_memory_grow_delta: 10,
-            opcode_trace: false,
-            metering: true,
-            runtime_breakpoints: true
-        };
-
-        let compiler_chain_generator = unsafe { prepare_middleware_chain_generator(&options) };
-        let compiler = unsafe { get_compiler(compiler_chain_generator) };
-        let module = wasmer_runtime_core::compile_with(bytecode.as_slice(), &compiler).unwrap();
-        let import_object = &mut ImportObject::new();
-        let mut instance = module.instantiate(&import_object).unwrap();
-        metering::set_points_limit(&mut instance, options.gas_limit);
-    }
-
-    fn get_wasm() -> Vec<u8> {
-        let filename = "../../examples/erc20.wasm";
-        std::fs::read(filename).expect("could not read bytecode from file")
-    }
-}
