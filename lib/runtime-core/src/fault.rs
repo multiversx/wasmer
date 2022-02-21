@@ -445,12 +445,13 @@ extern "C" fn sigint_handler(
 /// Ensure the signal handler is installed.
 pub fn ensure_sighandler() {
     INSTALL_SIGHANDLER.call_once(|| unsafe {
-        install_sighandler();
+        install_sighandler_as_dylib();
     });
 }
 
 static INSTALL_SIGHANDLER: Once = Once::new();
 
+#[allow(dead_code)]
 unsafe fn install_sighandler() {
     let sa_trap = SigAction::new(
         SigHandler::SigAction(signal_trap_handler),
@@ -469,6 +470,18 @@ unsafe fn install_sighandler() {
         SigSet::empty(),
     );
     sigaction(SIGINT, &sa_interrupt).unwrap();
+}
+
+unsafe fn install_sighandler_as_dylib() {
+    let sa_trap = SigAction::new(
+        SigHandler::SigAction(signal_trap_handler),
+        SaFlags::SA_ONSTACK,
+        SigSet::empty(),
+    );
+    sigaction(SIGFPE, &sa_trap).unwrap();
+    sigaction(SIGILL, &sa_trap).unwrap();
+    sigaction(SIGBUS, &sa_trap).unwrap();
+    sigaction(SIGTRAP, &sa_trap).unwrap();
 }
 
 #[derive(Debug, Clone)]
