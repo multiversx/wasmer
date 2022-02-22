@@ -7,12 +7,18 @@ use std::collections::BTreeMap;
 use std::ops::Bound::{Included, Unbounded};
 use std::sync::Arc;
 
+use rkyv::{
+    Archive,
+    Serialize as RkyvSerialize,
+    Deserialize as RkyvDeserialize,
+};
+
 /// An index to a register
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, Archive, RkyvSerialize, RkyvDeserialize)]
 pub struct RegisterIndex(pub usize);
 
 /// A kind of wasm or constant value
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, Archive, RkyvSerialize, RkyvDeserialize)]
 pub enum WasmAbstractValue {
     /// A wasm runtime value
     Runtime,
@@ -21,7 +27,7 @@ pub enum WasmAbstractValue {
 }
 
 /// A container for the state of a running wasm instance.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Archive, RkyvSerialize, RkyvDeserialize)]
 pub struct MachineState {
     /// Stack values.
     pub stack_values: Vec<MachineValue>,
@@ -38,7 +44,7 @@ pub struct MachineState {
 }
 
 /// A diff of two `MachineState`s.
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Archive, RkyvSerialize, RkyvDeserialize)]
 pub struct MachineStateDiff {
     /// Last.
     pub last: Option<usize>,
@@ -64,7 +70,7 @@ pub struct MachineStateDiff {
 }
 
 /// A kind of machine value.
-#[derive(Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, Archive, RkyvSerialize, RkyvDeserialize)]
 pub enum MachineValue {
     /// Undefined.
     Undefined,
@@ -83,11 +89,38 @@ pub enum MachineValue {
     /// Wasm Local.
     WasmLocal(usize),
     /// Two Halves.
-    TwoHalves(Box<(MachineValue, MachineValue)>), // 32-bit values. TODO: optimize: add another type for inner "half" value to avoid boxing?
+    TwoHalves(Box<(MachineSubvalue, MachineSubvalue)>), // 32-bit values. TODO: optimize: add another type for inner "half" value to avoid boxing?
+}
+
+/// A kind of machine value used in MachineValue::TwoHalves. Created so that MachineValue does not
+/// reference two more MachineValues as part of TwoHalves.
+#[derive(Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, Archive, RkyvSerialize, RkyvDeserialize)]
+pub enum MachineSubvalue {
+    /// Undefined.
+    Undefined,
+    /// Vmctx Deref.
+    VmctxDeref(Vec<usize>),
+    /// Wasm Stack.
+    WasmStack(usize),
+    /// Wasm Local.
+    WasmLocal(usize),
+}
+
+impl From<MachineValue> for MachineSubvalue {
+    #[inline]
+    fn from(subvalue: MachineValue) -> MachineSubvalue {
+        match subvalue {
+            MachineValue::Undefined => MachineSubvalue::Undefined,
+            MachineValue::VmctxDeref(v) => MachineSubvalue::VmctxDeref(v),
+            MachineValue::WasmStack(i) => MachineSubvalue::WasmStack(i),
+            MachineValue::WasmLocal(i) => MachineSubvalue::WasmLocal(i),
+            _ => unreachable!("invalid kind of MachineValue to convert to MachineSubvalue"),
+        }
+    }
 }
 
 /// A map of function states.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Archive, RkyvSerialize, RkyvDeserialize)]
 pub struct FunctionStateMap {
     /// Initial.
     pub initial: MachineState,
@@ -112,7 +145,7 @@ pub struct FunctionStateMap {
 }
 
 /// A kind of suspend offset.
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, Archive, RkyvSerialize, RkyvDeserialize)]
 pub enum SuspendOffset {
     /// A loop.
     Loop(usize),
@@ -123,7 +156,7 @@ pub enum SuspendOffset {
 }
 
 /// Info for an offset.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Archive, RkyvSerialize, RkyvDeserialize)]
 pub struct OffsetInfo {
     /// End offset.
     pub end_offset: usize, // excluded bound
@@ -134,7 +167,7 @@ pub struct OffsetInfo {
 }
 
 /// A map of module state.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Archive, RkyvSerialize, RkyvDeserialize)]
 pub struct ModuleStateMap {
     /// Local functions.
     pub local_functions: BTreeMap<usize, FunctionStateMap>,
@@ -753,7 +786,7 @@ pub mod x64 {
                         stack_offset -= 1;
                         // TODO: Cleanup
                         match inner.0 {
-                            MachineValue::WasmStack(x) => match state.wasm_stack[x] {
+                            MachineSubvalue::WasmStack(x) => match state.wasm_stack[x] {
                                 WasmAbstractValue::Const(x) => {
                                     assert!(x <= std::u32::MAX as u64);
                                     stack[stack_offset] |= x;
@@ -764,7 +797,7 @@ pub mod x64 {
                                     stack[stack_offset] |= v;
                                 }
                             },
-                            MachineValue::WasmLocal(x) => match fsm.locals[x] {
+                            MachineSubvalue::WasmLocal(x) => match fsm.locals[x] {
                                 WasmAbstractValue::Const(x) => {
                                     assert!(x <= std::u32::MAX as u64);
                                     stack[stack_offset] |= x;
@@ -775,16 +808,15 @@ pub mod x64 {
                                     stack[stack_offset] |= v;
                                 }
                             },
-                            MachineValue::VmctxDeref(ref seq) => {
+                            MachineSubvalue::VmctxDeref(ref seq) => {
                                 stack[stack_offset] |=
                                     compute_vmctx_deref(vmctx as *const Ctx, seq)
                                         & (std::u32::MAX as u64);
                             }
-                            MachineValue::Undefined => {}
-                            _ => unimplemented!("TwoHalves.0"),
+                            MachineSubvalue::Undefined => {}
                         }
                         match inner.1 {
-                            MachineValue::WasmStack(x) => match state.wasm_stack[x] {
+                            MachineSubvalue::WasmStack(x) => match state.wasm_stack[x] {
                                 WasmAbstractValue::Const(x) => {
                                     assert!(x <= std::u32::MAX as u64);
                                     stack[stack_offset] |= x << 32;
@@ -795,7 +827,7 @@ pub mod x64 {
                                     stack[stack_offset] |= v << 32;
                                 }
                             },
-                            MachineValue::WasmLocal(x) => match fsm.locals[x] {
+                            MachineSubvalue::WasmLocal(x) => match fsm.locals[x] {
                                 WasmAbstractValue::Const(x) => {
                                     assert!(x <= std::u32::MAX as u64);
                                     stack[stack_offset] |= x << 32;
@@ -806,14 +838,13 @@ pub mod x64 {
                                     stack[stack_offset] |= v << 32;
                                 }
                             },
-                            MachineValue::VmctxDeref(ref seq) => {
+                            MachineSubvalue::VmctxDeref(ref seq) => {
                                 stack[stack_offset] |=
                                     (compute_vmctx_deref(vmctx as *const Ctx, seq)
                                         & (std::u32::MAX as u64))
                                         << 32;
                             }
-                            MachineValue::Undefined => {}
-                            _ => unimplemented!("TwoHalves.1"),
+                            MachineSubvalue::Undefined => {}
                         }
                     }
                 }
@@ -1198,26 +1229,24 @@ pub mod x64 {
                         let v = *stack;
                         stack = stack.offset(1);
                         match inner.0 {
-                            MachineValue::WasmStack(idx) => {
+                            MachineSubvalue::WasmStack(idx) => {
                                 wasm_stack[idx] = Some(v & 0xffffffffu64);
                             }
-                            MachineValue::WasmLocal(idx) => {
+                            MachineSubvalue::WasmLocal(idx) => {
                                 wasm_locals[idx] = Some(v & 0xffffffffu64);
                             }
-                            MachineValue::VmctxDeref(_) => {}
-                            MachineValue::Undefined => {}
-                            _ => unimplemented!("TwoHalves.0 (read)"),
+                            MachineSubvalue::VmctxDeref(_) => {}
+                            MachineSubvalue::Undefined => {}
                         }
                         match inner.1 {
-                            MachineValue::WasmStack(idx) => {
+                            MachineSubvalue::WasmStack(idx) => {
                                 wasm_stack[idx] = Some(v >> 32);
                             }
-                            MachineValue::WasmLocal(idx) => {
+                            MachineSubvalue::WasmLocal(idx) => {
                                 wasm_locals[idx] = Some(v >> 32);
                             }
-                            MachineValue::VmctxDeref(_) => {}
-                            MachineValue::Undefined => {}
-                            _ => unimplemented!("TwoHalves.1 (read)"),
+                            MachineSubvalue::VmctxDeref(_) => {}
+                            MachineSubvalue::Undefined => {}
                         }
                     }
                 }

@@ -1,4 +1,3 @@
-use std::panic;
 pub use wasmer_runtime::compile_with_config_with;
 use wasmer_runtime::{self as runtime, error::Result, ImportObject, Instance, Module};
 

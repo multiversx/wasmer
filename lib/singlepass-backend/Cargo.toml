@@ -24,6 +24,9 @@ bincode = "1.2"
 serde = "1.0"
 serde_derive = "1.0"
 
+[dependencies.rkyv]
+version = "0.7.26"
+
 [features]
 default = ["deterministic-execution"]
 deterministic-execution = ["wasmparser/deterministic", "wasmer-runtime-core/deterministic-execution"]

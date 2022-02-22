@@ -2,7 +2,8 @@
 //! serializing compiled wasm code to a binary format.  The binary format can be persisted,
 //! and loaded to allow skipping compilation and fast startup.
 
-use crate::{module::ModuleInfo, sys::Memory};
+use crate::{module::ModuleInfo, sys::Memory, sys::ArchivableMemory};
+use rkyv::{Archive, Serialize as RkyvSerialize, Deserialize as RkyvDeserialize};
 use std::{io, mem, slice};
 
 /// Indicates the invalid type of invalid cache file
@@ -152,16 +153,20 @@ impl ArtifactHeader {
 }
 
 
-#[derive(Serialize, Deserialize)]
-struct ArtifactInner {
+/// Inner information of an Artifact.
+#[derive(Serialize, Deserialize, Archive, RkyvSerialize, RkyvDeserialize)]
+pub struct ArtifactInner {
     info: Box<ModuleInfo>,
     #[serde(with = "serde_bytes")]
     backend_metadata: Box<[u8]>,
+
+    #[with(ArchivableMemory)]
     compiled_code: Memory,
 }
 
 /// Artifact are produced by caching, are serialized/deserialized to binaries, and contain
 /// module info, backend metadata, and compiled code.
+#[derive(Archive, RkyvSerialize, RkyvDeserialize)]
 pub struct Artifact {
     inner: ArtifactInner,
 }
@@ -229,3 +234,113 @@ impl Artifact {
 /// A unique ID generated from the version of Wasmer for use with cache versioning
 pub const WASMER_VERSION_HASH: &'static str =
     include_str!(concat!(env!("OUT_DIR"), "/wasmer_version_hash.txt"));
+
+#[cfg(test)]
+mod tests {
+    use super::Artifact;
+    use super::ArtifactInner;
+    use super::Memory;
+    use super::ModuleInfo;
+    use std::collections::HashMap;
+    use crate::structures::Map;
+    use crate::module::StringTable;
+    use rkyv::ser::serializers::AllocSerializer;
+    use rkyv::ser::Serializer as RkyvSerializer;
+    use rkyv::Deserialize;
+    use rkyv::Archived;
+
+    #[test]
+    fn test_rkyv_artifact() {
+        let bytes = make_test_bytes();
+        let memory = make_test_memory(&bytes);
+
+        let module_info = make_empty_module_info();
+        let artifact = Artifact::from_parts(
+            Box::new(module_info), 
+            b"test_backend".to_vec().into_boxed_slice(),
+            memory,
+        );
+
+        let mut serializer = AllocSerializer::<4096>::default();
+        serializer.serialize_value(&artifact).unwrap();
+        let serialized = serializer.into_serializer().into_inner();
+        assert!(serialized.len() > 0);
+        print!("{:?}", serialized);
+
+        let archived: &Archived<Artifact>
+            = unsafe { rkyv::archived_root::<Artifact>(&serialized[..]) };
+
+        let deserialized_artifact = Deserialize::<Artifact, _>::deserialize(archived, &mut rkyv::Infallible).unwrap();
+        unsafe { assert_eq!(deserialized_artifact.inner.compiled_code.as_slice(), artifact.inner.compiled_code.as_slice()) };
+        assert_eq!(deserialized_artifact.inner.compiled_code.protection(), artifact.inner.compiled_code.protection());
+    }
+
+    #[test]
+    fn test_rkyv_artifact_inner() {
+        let bytes = make_test_bytes();
+        let memory = make_test_memory(&bytes);
+
+        let module_info = make_empty_module_info();
+        let artifact_inner = ArtifactInner {
+            info: Box::new(module_info),
+            backend_metadata: b"test_backend".to_vec().into_boxed_slice(),
+            compiled_code: memory,
+        };
+
+        let mut serializer = AllocSerializer::<4096>::default();
+        serializer.serialize_value(&artifact_inner).unwrap();
+        let serialized = serializer.into_serializer().into_inner();
+        assert!(serialized.len() > 0);
+        print!("{:?}", serialized);
+
+        let archived: &Archived<ArtifactInner> 
+            = unsafe { rkyv::archived_root::<ArtifactInner>(&serialized[..]) };
+
+        let deserialized_artifact_inner = Deserialize::<ArtifactInner, _>::deserialize(archived, &mut rkyv::Infallible).unwrap();
+        unsafe { assert_eq!(deserialized_artifact_inner.compiled_code.as_slice(), artifact_inner.compiled_code.as_slice()) };
+        assert_eq!(deserialized_artifact_inner.compiled_code.protection(), artifact_inner.compiled_code.protection());
+    }
+
+    fn make_empty_module_info() -> ModuleInfo {
+        ModuleInfo {
+            memories: Map::new(),
+            globals: Map::new(),
+            tables: Map::new(),
+            imported_functions: Map::new(),
+            imported_memories: Map::new(),
+            imported_tables: Map::new(),
+            imported_globals: Map::new(),
+            exports: Default::default(),
+            data_initializers: Vec::new(),
+            elem_initializers: Vec::new(),
+            start_func: None,
+            func_assoc: Map::new(),
+            signatures: Map::new(),
+            backend: "test".to_string(),
+            namespace_table: StringTable::new(),
+            name_table: StringTable::new(),
+            em_symbol_map: None,
+            custom_sections: HashMap::new(),
+            generate_debug_info: false,
+            #[cfg(feature = "generate-debug-information")]
+            debug_info_manager: crate::jit_debug::JitCodeDebugInfoManager::new(),
+        }
+    }
+
+    fn make_test_memory(bytes: &Vec<u8>) -> Memory {
+        let mut memory = Memory::with_size_protect(1000, crate::sys::Protect::ReadWrite)
+            .expect("Could not create memory");
+        unsafe {
+            memory.as_slice_mut().copy_from_slice(&bytes[..]);
+        }
+        memory
+    }
+
+    fn make_test_bytes() -> Vec<u8> {
+        let page_size = page_size::get();
+        let mut bytes = b"abcdefghijkl".to_vec();
+        let padding_zeros = [0 as u8; 1].repeat(page_size - bytes.len());
+        bytes.extend(padding_zeros);
+        bytes
+    }
+}
