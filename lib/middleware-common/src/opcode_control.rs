@@ -5,7 +5,10 @@ use wasmer_runtime_core::{
     module::ModuleInfo,
 };
 
-use crate::runtime_breakpoints::{push_runtime_breakpoint, BREAKPOINT_VALUE_EXECUTION_FAILED};
+use crate::runtime_breakpoints::{
+    push_runtime_breakpoint,
+    BREAKPOINT_VALUE_MEMORY_LIMIT,
+};
 
 static FIELD_MEMORY_GROW_COUNT: InternalField = InternalField::allocate();
 
@@ -35,7 +38,7 @@ impl OpcodeControl {
         sink.push(Event::WasmOwned(Operator::If {
             ty: WpTypeOrFuncType::Type(WpType::EmptyBlockType),
         }));
-        push_runtime_breakpoint(sink, BREAKPOINT_VALUE_EXECUTION_FAILED);
+        push_runtime_breakpoint(sink, BREAKPOINT_VALUE_MEMORY_LIMIT);
         sink.push(Event::WasmOwned(Operator::End));
     }
 
@@ -63,7 +66,7 @@ impl OpcodeControl {
         sink.push(Event::WasmOwned(Operator::If {
             ty: WpTypeOrFuncType::Type(WpType::EmptyBlockType),
         }));
-        push_runtime_breakpoint(sink, BREAKPOINT_VALUE_EXECUTION_FAILED);
+        push_runtime_breakpoint(sink, BREAKPOINT_VALUE_MEMORY_LIMIT);
         sink.push(Event::WasmOwned(Operator::End));
     }
 }

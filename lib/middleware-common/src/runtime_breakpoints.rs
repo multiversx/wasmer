@@ -11,10 +11,7 @@ pub static FIELD_RUNTIME_BREAKPOINT_VALUE: InternalField = InternalField::alloca
 pub const BREAKPOINT_VALUE_NO_BREAKPOINT: u64 = 0;
 pub const BREAKPOINT_VALUE_EXECUTION_FAILED: u64 = 1;
 pub const BREAKPOINT_VALUE_OUT_OF_GAS: u64 = 4;
-
-
-#[derive(Copy, Clone, Debug)]
-pub struct RuntimeBreakpointReachedError;
+pub const BREAKPOINT_VALUE_MEMORY_LIMIT: u64 = 5;
 
 
 pub struct RuntimeBreakpointHandler {}
