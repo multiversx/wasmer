@@ -118,7 +118,11 @@ lazy_static! {
         InterruptSignalMem(ptr as _)
     };
 }
+
 static INTERRUPT_SIGNAL_DELIVERED: AtomicBool = AtomicBool::new(false);
+
+/// Controls whether SIGSEGV is handled by Wasmer or not.
+pub static SIGSEGV_PASSTHROUGH: AtomicBool = AtomicBool::new(false);
 
 /// Returns a boolean indicating if SIGINT triggered the fault.
 pub fn was_sigint_triggered_fault() -> bool {
@@ -482,6 +486,11 @@ unsafe fn install_sighandler_as_dylib() {
     sigaction(SIGILL, &sa_trap).unwrap();
     sigaction(SIGBUS, &sa_trap).unwrap();
     sigaction(SIGTRAP, &sa_trap).unwrap();
+
+    let capture_sigsegv = !SIGSEGV_PASSTHROUGH.load(Ordering::SeqCst);
+    if capture_sigsegv {
+        sigaction(SIGSEGV, &sa_trap).unwrap();
+    }
 }
 
 #[derive(Debug, Clone)]
