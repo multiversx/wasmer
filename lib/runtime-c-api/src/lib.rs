@@ -104,8 +104,8 @@ pub mod memory;
 pub mod metering;
 
 pub mod instance_cache;
-
 pub mod runtime_breakpoints;
+pub mod signals;
 
 pub mod module;
 pub mod table;
