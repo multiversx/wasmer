@@ -253,8 +253,8 @@ impl StackmapEntry {
                 machine_stack_layout.push(major.clone());
             } else {
                 machine_stack_layout.push(MachineValue::TwoHalves(Box::new((
-                    major.clone(),
-                    minor.clone(),
+                    major.clone().into(),
+                    minor.clone().into(),
                 ))));
             }
         }

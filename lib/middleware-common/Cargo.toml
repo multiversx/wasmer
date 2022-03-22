@@ -1,0 +1,13 @@
+[package]
+name = "wasmer-middleware-common"
+repository = "https://github.com/ElrondNetwork/wasmer"
+version = "0.15.0"
+description = "Wasmer runtime common middlewares"
+license = "MIT"
+authors = ["The Wasmer Engineering Team <engineering@wasmer.io>"]
+keywords = ["wasm", "webassembly", "middleware", "metering"]
+categories = ["wasm"]
+edition = "2018"
+
+[dependencies]
+wasmer-runtime-core = { path = "../runtime-core", version = "0.15.0" }
