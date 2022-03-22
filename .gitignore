@@ -5,6 +5,8 @@
 .gdb_history
 **/.vscode
 api-docs-repo/
+tags
+.ycm*
 /.cargo_home/
 /package/
 /dist/

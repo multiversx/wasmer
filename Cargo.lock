@@ -205,6 +205,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "bytecheck"
+version = "0.6.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "314889ea31cda264cb7c3d6e6e5c9415a987ecb0e72c17c00d36fbb881d34abe"
+dependencies = [
+ "bytecheck_derive",
+ "ptr_meta",
+]
+
+[[package]]
+name = "bytecheck_derive"
+version = "0.6.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4a2b3b92c135dae665a6f760205b89187638e83bed17ef3e44e83c712cf30600"
+dependencies = [
+ "proc-macro2 1.0.20",
+ "quote 1.0.7",
+ "syn 1.0.40",
+]
+
+[[package]]
 name = "build-deps"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -300,6 +321,12 @@ name = "cfg-if"
 version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4785bdd1c96b2a846b2bd7cc02e86b6b3dbf14e7e53446c4f54c92a361040822"
+
+[[package]]
+name = "cfg-if"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "cfg-if"
@@ -457,6 +484,7 @@ dependencies = [
  "regalloc",
  "smallvec",
  "target-lexicon 0.12.3",
+ "thiserror",
 ]
 
 [[package]]
@@ -1025,6 +1053,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ab5ef0d4909ef3724cc8cce6ccc8572c5c817592e9285f5464f8e86f8bd3726e"
 dependencies = [
  "ahash 0.7.6",
+]
+
+[[package]]
+name = "hashbrown"
+version = "0.11.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ab5ef0d4909ef3724cc8cce6ccc8572c5c817592e9285f5464f8e86f8bd3726e"
+dependencies = [
+ "ahash",
 ]
 
 [[package]]
@@ -1853,6 +1890,41 @@ dependencies = [
 
 [[package]]
 name = "rend"
+version = "0.3.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1033f6fe7ce48c8333e5412891b933e85d6a3a09728c4883240edf64e7a6f11a"
+dependencies = [
+ "bytecheck",
+]
+
+[[package]]
+name = "rkyv"
+version = "0.7.26"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "66bf572c17c77322f4d858c214def56b13a3c32b8d833cd6d28a92de8325ac5f"
+dependencies = [
+ "bytecheck",
+ "hashbrown",
+ "indexmap",
+ "ptr_meta",
+ "rend",
+ "rkyv_derive",
+ "seahash",
+]
+
+[[package]]
+name = "rkyv_derive"
+version = "0.7.26"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "df3eca50f172b8e59e2080810fb41b65f047960c197149564d4bd0680af1888e"
+dependencies = [
+ "proc-macro2 1.0.20",
+ "quote 1.0.7",
+ "syn 1.0.40",
+]
+
+[[package]]
+name = "rend"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "79af64b4b6362ffba04eef3a4e10829718a4896dac19daa741851c86781edf95"
@@ -1993,6 +2065,12 @@ dependencies = [
  "libc",
  "version-compare",
 ]
+
+[[package]]
+name = "seahash"
+version = "4.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1c107b6f4780854c8b126e228ea8869f4d7b71260f962fefb57b996b8959ba6b"
 
 [[package]]
 name = "seahash"
@@ -2745,6 +2823,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "wasi"
+version = "0.10.0+wasi-snapshot-preview1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1a143597ca7c7793eff794def352d41792a93c481eb1042423ff7ff72ba2c31f"
+
+[[package]]
 name = "wasm-smith"
 version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2981,7 +3065,7 @@ name = "wasmer-emscripten"
 version = "2.2.1"
 dependencies = [
  "byteorder",
- "getrandom",
+ "getrandom 0.1.14",
  "lazy_static",
  "libc",
  "log",
@@ -3172,7 +3256,7 @@ dependencies = [
  "bincode",
  "cfg-if 1.0.0",
  "generational-arena",
- "getrandom",
+ "getrandom 0.1.14",
  "libc",
  "serde",
  "thiserror",
@@ -3267,6 +3351,11 @@ name = "wasmparser"
 version = "0.78.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "52144d4c78e5cf8b055ceab8e5fa22814ce4315d6002ad32cfd914f37c12fd65"
+
+[[package]]
+name = "wasmparser"
+version = "0.51.4"
+source = "git+https://github.com/ElrondNetwork/wasmparser.rs#f776d0ae8c349463b25d023ab6c8b1a80a761fd7"
 
 [[package]]
 name = "wasmparser"
