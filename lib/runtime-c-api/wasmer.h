@@ -1092,6 +1092,8 @@ uint64_t wasmer_instance_get_runtime_breakpoint_value(wasmer_instance_t *instanc
  */
 bool wasmer_instance_is_function_imported(wasmer_instance_t *instance, const char *name);
 
+void wasmer_instance_reset_stack_offset(wasmer_instance_t *instance);
+
 void wasmer_instance_set_points_limit(wasmer_instance_t *instance, uint64_t limit);
 
 void wasmer_instance_set_points_used(wasmer_instance_t *instance, uint64_t new_gas);

@@ -481,6 +481,11 @@ impl LocalBacking {
             .collect::<Map<_, _>>()
             .into_boxed_map()
     }
+
+    /// Get a mutable reference to local globals
+    pub fn get_globals(&mut self) -> &mut BoxedMap<LocalGlobalIndex, Global> {
+        &mut self.globals
+    }
 }
 
 /// The `ImportBacking` stores references to the imported resources of an Instance. This includes
