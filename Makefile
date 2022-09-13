@@ -117,6 +117,10 @@ capi-osx-amd64: capi
 	mv target/release/libwasmer_runtime_c_api.dylib target/release/libwasmer_darwin_amd64.dylib
 	install_name_tool -id @executable_path/libwasmer_darwin_amd64.dylib target/release/libwasmer_darwin_amd64.dylib;
 
+capi-osx-arm64: capi
+	mv target/release/libwasmer_runtime_c_api.dylib target/release/libwasmer_darwin_arm64.dylib
+	install_name_tool -id @executable_path/libwasmer_darwin_arm64.dylib target/release/libwasmer_darwin_arm64.dylib;
+
 capi-singlepass:
 	cargo build --manifest-path lib/runtime-c-api/Cargo.toml --release \
 		--no-default-features --features singlepass-backend,wasi

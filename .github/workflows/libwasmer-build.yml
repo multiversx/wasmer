@@ -19,8 +19,23 @@ jobs:
           - os: ubuntu-18.04
             artifact_name: libwasmer_linux_amd64.so
             make_target: capi-linux-amd64
+          - runtime: osx-x64
+            os: macos-11
+            artifact_name: libwasmer_darwin_amd64.dylib
+            make_target: capi-osx-amd64
+          - runtime: osx-arm64
+            os: macos-11
+            artifact_name: libwasmer_darwin_arm64.dylib
+            make_target: capi-osx-arm64
     steps:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Make
         run: make ${{ matrix.make_target }}
+      - name: Save artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: libs
+          path: |
+            target/release/*.so
+            target/release/*.dylib
