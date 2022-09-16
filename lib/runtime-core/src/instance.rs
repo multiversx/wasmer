@@ -52,6 +52,7 @@ impl Drop for InstanceInner {
 pub struct Instance {
     /// Reference to the module used to instantiate this instance.
     pub module: Arc<ModuleInner>,
+    module_info: ModuleInfo,
     inner: Pin<Box<InstanceInner>>,
     #[allow(dead_code)]
     import_object: ImportObject,
@@ -91,6 +92,7 @@ impl Instance {
 
         let instance = Instance {
             module,
+            module_info: module.info, // this is an Arc, is that ok?
             inner,
             import_object: imports.clone_ref(),
         };
@@ -142,6 +144,9 @@ impl Instance {
         }
 
         Ok(instance)
+    }
+
+    pub fn reset(&mut self) {
     }
 
     /// Load an `Instance` using the given loader.

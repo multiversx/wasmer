@@ -138,7 +138,7 @@ test-capi-singlepass: capi-singlepass
 		--no-default-features --features singlepass-backend,wasi
 
 capi-dev:
-	cargo build -p wasmer-runtime-c-api --profile dev -Z unstable-options
+	cargo build -p wasmer-runtime-c-api --profile dev
 
 test-capi: capi
 	cargo test -p wasmer-runtime-c-api --release
