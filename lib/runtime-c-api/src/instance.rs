@@ -251,6 +251,22 @@ pub unsafe extern "C" fn wasmer_instantiate_with_options(
     wasmer_result_t::WASMER_OK
 }
 
+#[allow(clippy::cast_ptr_alignment)]
+#[no_mangle]
+pub unsafe extern "C" fn wasmer_instantiate_reset(
+    instance: *mut *mut wasmer_instance_t,
+) -> wasmer_result_t {
+    if instance.is_null() {
+        update_last_error(CApiError {
+            msg: "null instance".to_string(),
+        });
+        return wasmer_result_t::WASMER_ERROR;
+    }
+
+    let instance = unsafe { &*(instance as *const Instance) };
+    instance.reset();
+}
+
 pub unsafe fn prepare_middleware_chain_generator(
     options: &CompilationOptions
     ) -> impl Fn() -> MiddlewareChain + '_ {
