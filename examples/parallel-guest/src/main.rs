@@ -1,11 +1,13 @@
 #[macro_use]
 extern crate lazy_static;
 
+#[allow(dead_code)]
 extern "C" {
     fn get_hashed_password(ptr: u32, len: u32) -> u32;
     fn print_char(c: u32);
 }
 
+#[allow(dead_code)]
 fn print_str(s: &str) {
     for c in s.chars() {
         unsafe { print_char(c as u32) };
