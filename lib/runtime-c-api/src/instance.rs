@@ -263,8 +263,9 @@ pub unsafe extern "C" fn wasmer_instantiate_reset(
         return wasmer_result_t::WASMER_ERROR;
     }
 
-    let instance = unsafe { &*(instance as *const Instance) };
+    let instance = &mut *(instance as *mut Instance);
     instance.reset();
+    wasmer_result_t::WASMER_OK
 }
 
 pub unsafe fn prepare_middleware_chain_generator(

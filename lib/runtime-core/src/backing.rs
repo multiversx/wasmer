@@ -103,6 +103,30 @@ impl LocalBacking {
         })
     }
 
+    /// todo: add documentation
+    pub(crate) fn reset(&mut self) {
+        println!("Resetting ~ Local Backing:\n");
+        Self::reset_globals();
+    }
+
+    fn reset_globals() {
+        // todo: adapt code
+        // if globals.len() > 0 {
+        // let init_globals = &instance.module.info.globals;
+        // let init_stack_offset = init_globals.iter().next().unwrap().1;
+        // let init_value = match &init_stack_offset.init {
+        //     Initializer::Const(value) => value.clone(),
+        //     Initializer::GetGlobal(_) => {
+        //         println!("Cannot reset stack offset [init value not const]");
+        //         return;
+        //     }
+        // };
+
+        // let stack_offset = globals.iter_mut().next().unwrap().1;
+        // stack_offset.set(init_value);
+        println!("	[x] globals");
+    }
+
     fn generate_local_functions(module: &ModuleInner) -> BoxedMap<LocalFuncIndex, *const vm::Func> {
         (0..module.info.func_assoc.len() - module.info.imported_functions.len())
             .map(|index| {
