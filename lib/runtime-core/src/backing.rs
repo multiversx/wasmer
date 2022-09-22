@@ -1,5 +1,5 @@
 use crate::{
-    error::{CreationError, LinkError, LinkResult},
+    error::{CreationError, LinkError, LinkResult, CallResult, RuntimeError, CallError},
     export::{Context, Export},
     global::Global,
     import::ImportObject,
@@ -12,7 +12,7 @@ use crate::{
     types::{
         ImportedFuncIndex, ImportedGlobalIndex, ImportedMemoryIndex, ImportedTableIndex,
         Initializer, LocalFuncIndex, LocalGlobalIndex, LocalMemoryIndex, LocalOrImport,
-        LocalTableIndex, SigIndex, Value,
+        LocalTableIndex, SigIndex, Value, GlobalInit,
     },
     vm,
 };
@@ -109,20 +109,34 @@ impl LocalBacking {
         Self::reset_globals(&module_info, &mut self.globals);
     }
 
-    fn reset_globals(module_info: &ModuleInfo, globals: &mut SliceMap<LocalGlobalIndex, Global>) {
+    fn reset_globals(
+        module_info: &ModuleInfo,
+        globals: &mut SliceMap<LocalGlobalIndex, Global>
+    ) -> CallResult<()> {
         // todo: adapt code to reset all globals not only the stack offset
         let init_globals = &module_info.globals;
-        let init_stack_offset = init_globals.iter().next().unwrap().1;
-        let init_value = match &init_stack_offset.init {
-            Initializer::Const(value) => value.clone(),
-            Initializer::GetGlobal(_) => {
-                println!("Cannot reset stack offset [init value not const]");
-                return;
-            }
-        };
-        let stack_offset = globals.iter_mut().next().unwrap().1;
-        stack_offset.set(init_value);
-        println!("	[x] globals");
+        for (index, init_value) in init_globals.iter() {
+            let GlobalInit {desc, init} = init_value;
+
+            let value = match init {
+                Initializer::Const(v) => v.clone(),
+                _ => {
+                    return CallError::Runtime(RuntimeError(Box::new("Can only reset const globals")));
+                }
+            };
+
+            let global = match globals.get(index) {
+                None => return CallError::Runtime(RuntimeError(Box::new("Missing global value to reset"))),
+                Some(g) => {
+                    if desc.mutable && value != g.get() {
+                        return CallError::Runtime(RuntimeError(Box::new("Immutable global found changed")));
+                    }
+                    g.set(value);
+                },
+            };
+        }
+
+        Ok(())
     }
 
     fn generate_local_functions(module: &ModuleInner) -> BoxedMap<LocalFuncIndex, *const vm::Func> {
