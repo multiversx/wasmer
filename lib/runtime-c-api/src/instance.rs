@@ -254,7 +254,7 @@ pub unsafe extern "C" fn wasmer_instantiate_with_options(
 #[allow(clippy::cast_ptr_alignment)]
 #[no_mangle]
 pub unsafe extern "C" fn wasmer_instantiate_reset(
-    instance: *mut *mut wasmer_instance_t,
+    instance: *mut wasmer_instance_t,
 ) -> wasmer_result_t {
     if instance.is_null() {
         update_last_error(CApiError {

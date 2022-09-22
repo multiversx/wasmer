@@ -105,14 +105,11 @@ impl LocalBacking {
 
     /// todo: add documentation
     pub(crate) fn reset(&mut self, module_info: &ModuleInfo) {
-        println!("Resetting ~ Local Backing:\n");
+        println!("Resetting ~ Local Backing:");
         Self::reset_globals(&module_info, &mut self.globals);
     }
 
-    fn reset_globals(
-        module_info: &ModuleInfo,
-        globals: &mut SliceMap<LocalGlobalIndex, Global>
-    ) {
+    fn reset_globals(module_info: &ModuleInfo, globals: &mut SliceMap<LocalGlobalIndex, Global>) {
         // todo: adapt code to reset all globals not only the stack offset
         let init_globals = &module_info.globals;
         let init_stack_offset = init_globals.iter().next().unwrap().1;
