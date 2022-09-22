@@ -104,26 +104,27 @@ impl LocalBacking {
     }
 
     /// todo: add documentation
-    pub(crate) fn reset(&mut self) {
+    pub(crate) fn reset(&mut self, module_info: &ModuleInfo) {
         println!("Resetting ~ Local Backing:\n");
-        Self::reset_globals();
+        Self::reset_globals(&module_info, &mut self.globals);
     }
 
-    fn reset_globals() {
-        // todo: adapt code
-        // if globals.len() > 0 {
-        // let init_globals = &instance.module.info.globals;
-        // let init_stack_offset = init_globals.iter().next().unwrap().1;
-        // let init_value = match &init_stack_offset.init {
-        //     Initializer::Const(value) => value.clone(),
-        //     Initializer::GetGlobal(_) => {
-        //         println!("Cannot reset stack offset [init value not const]");
-        //         return;
-        //     }
-        // };
-
-        // let stack_offset = globals.iter_mut().next().unwrap().1;
-        // stack_offset.set(init_value);
+    fn reset_globals(
+        module_info: &ModuleInfo,
+        globals: &mut SliceMap<LocalGlobalIndex, Global>
+    ) {
+        // todo: adapt code to reset all globals not only the stack offset
+        let init_globals = &module_info.globals;
+        let init_stack_offset = init_globals.iter().next().unwrap().1;
+        let init_value = match &init_stack_offset.init {
+            Initializer::Const(value) => value.clone(),
+            Initializer::GetGlobal(_) => {
+                println!("Cannot reset stack offset [init value not const]");
+                return;
+            }
+        };
+        let stack_offset = globals.iter_mut().next().unwrap().1;
+        stack_offset.set(init_value);
         println!("	[x] globals");
     }
 

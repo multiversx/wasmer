@@ -146,7 +146,7 @@ impl Instance {
 
     /// todo: add documentation
     pub fn reset(&mut self) {
-        self.inner.backing.reset()
+        self.inner.backing.reset(&self.module.info)
     }
 
     /// Load an `Instance` using the given loader.
