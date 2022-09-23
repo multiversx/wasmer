@@ -1,10 +1,10 @@
 use crate::{
-    error::{CreationError, LinkError, LinkResult, RuntimeError, RuntimeResult},
+    error::{CreationError, CreationResult, LinkError, LinkResult, RuntimeError, RuntimeResult},
     export::{Context, Export},
     global::Global,
     import::ImportObject,
-    memory::Memory,
-    module::{DataInitializer, ImportName, ModuleInfo, ModuleInner},
+    memory::{Memory, MAX_MEMORIES_COUNT},
+    module::{DataInitializer, ImportName, ModuleInfo, ModuleInner, TableInitializer},
     sig_registry::SigRegistry,
     structures::{BoxedMap, Map, SliceMap, TypedIndex},
     table::Table,
@@ -151,10 +151,24 @@ impl LocalBacking {
     }
 
     fn reset_tables(
-        _module_info: &ModuleInfo,
+        module_info: &ModuleInfo,
         _tables: &mut SliceMap<LocalTableIndex, Table>,
     ) -> RuntimeResult<()> {
         // todo: remove debug prints
+        for table_initializer in &module_info.elem_initializers {
+            let TableInitializer {
+                table_index: _,
+                base,
+                elements: _,
+            } = table_initializer;
+            let _base = if let Initializer::Const(Value::I32(value)) = base {
+                *value as usize
+            } else {
+                return Err(RuntimeError(Box::new(
+                    "Can only reset tables with const base",
+                )));
+            };
+        }
         println!("  [x] tables");
         Ok(())
     }
@@ -212,13 +226,13 @@ impl LocalBacking {
 
     fn generate_memories(
         module: &ModuleInner,
-    ) -> Result<BoxedMap<LocalMemoryIndex, Memory>, CreationError> {
-        let memory_count = module.info.memories.len();
-        if memory_count > 1 {
+    ) -> CreationResult<BoxedMap<LocalMemoryIndex, Memory>> {
+        let memories_count = module.info.memories.len();
+        if memories_count > MAX_MEMORIES_COUNT {
             return Err(CreationError::UnableToCreateMemory);
         }
 
-        let mut memories = Map::with_capacity(memory_count);
+        let mut memories = Map::with_capacity(memories_count);
         for (_, &desc) in &module.info.memories {
             let memory = Memory::new(desc)?;
             memories.push(memory);

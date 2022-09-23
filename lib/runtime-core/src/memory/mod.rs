@@ -14,7 +14,7 @@ use std::{cell::Cell, fmt, mem, sync::Arc};
 
 use std::sync::Mutex as StdMutex;
 
-use rkyv::{Archive, Serialize as RkyvSerialize, Deserialize as RkyvDeserialize};
+use rkyv::{Archive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
 
 pub use self::dynamic::DynamicMemory;
 pub use self::static_::StaticMemory;
@@ -26,6 +26,9 @@ mod dynamic;
 pub mod ptr;
 mod static_;
 mod view;
+
+/// todo: add documentation
+pub const MAX_MEMORIES_COUNT: usize = 1;
 
 #[derive(Clone)]
 enum MemoryVariant {
@@ -175,7 +178,19 @@ impl fmt::Debug for Memory {
 }
 
 /// A kind a memory.
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, Archive, RkyvSerialize, RkyvDeserialize)]
+#[derive(
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Archive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
 pub enum MemoryType {
     /// A dynamic memory.
     Dynamic,

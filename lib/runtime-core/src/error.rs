@@ -25,6 +25,9 @@ pub type ResolveResult<T> = std::result::Result<T, ResolveError>;
 /// Result of an attempt to parse bytes into a WebAssembly module.
 /// Aliases the standard `Result` with `ParseError` as the default error type.
 pub type ParseResult<T> = std::result::Result<T, ParseError>;
+/// Result of an attempt to create something, like a `Memory` or `Table`.
+/// Aliases the standard `Result` with `CreationError` as the default error type.
+pub type CreationResult<T> = std::result::Result<T, CreationError>;
 
 /// This is returned when the chosen compiler is unable to
 /// successfully compile the provided WebAssembly module into
@@ -148,25 +151,54 @@ impl PartialEq for LinkError {
 impl std::fmt::Display for LinkError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            LinkError::ImportNotFound {namespace, name} => write!(f, "Import not found, namespace: {}, name: {}", namespace, name),
-            LinkError::IncorrectGlobalDescriptor {namespace, name,expected,found} => {
+            LinkError::ImportNotFound { namespace, name } => write!(
+                f,
+                "Import not found, namespace: {}, name: {}",
+                namespace, name
+            ),
+            LinkError::IncorrectGlobalDescriptor {
+                namespace,
+                name,
+                expected,
+                found,
+            } => {
                 write!(f, "Incorrect global descriptor, namespace: {}, name: {}, expected global descriptor: {:?}, found global descriptor: {:?}", namespace, name, expected, found)
-            },
-            LinkError::IncorrectImportSignature{namespace, name,expected,found} => {
+            }
+            LinkError::IncorrectImportSignature {
+                namespace,
+                name,
+                expected,
+                found,
+            } => {
                 write!(f, "Incorrect import signature, namespace: {}, name: {}, expected signature: {}, found signature: {}", namespace, name, expected, found)
             }
-            LinkError::IncorrectImportType{namespace, name,expected,found} => {
+            LinkError::IncorrectImportType {
+                namespace,
+                name,
+                expected,
+                found,
+            } => {
                 write!(f, "Incorrect import type, namespace: {}, name: {}, expected type: {}, found type: {}", namespace, name, expected, found)
             }
-            LinkError::IncorrectMemoryDescriptor{namespace, name,expected,found} => {
+            LinkError::IncorrectMemoryDescriptor {
+                namespace,
+                name,
+                expected,
+                found,
+            } => {
                 write!(f, "Incorrect memory descriptor, namespace: {}, name: {}, expected memory descriptor: {:?}, found memory descriptor: {:?}", namespace, name, expected, found)
-            },
-            LinkError::IncorrectTableDescriptor{namespace, name,expected,found} => {
+            }
+            LinkError::IncorrectTableDescriptor {
+                namespace,
+                name,
+                expected,
+                found,
+            } => {
                 write!(f, "Incorrect table descriptor, namespace: {}, name: {}, expected table descriptor: {:?}, found table descriptor: {:?}", namespace, name, expected, found)
-            },
+            }
             LinkError::Generic { message } => {
                 write!(f, "{}", message)
-            },
+            }
         }
     }
 }
