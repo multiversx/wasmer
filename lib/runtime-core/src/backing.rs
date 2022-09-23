@@ -1,5 +1,5 @@
 use crate::{
-    error::{CreationError, LinkError, LinkResult, RuntimeResult, RuntimeError},
+    error::{CreationError, LinkError, LinkResult, RuntimeError, RuntimeResult},
     export::{Context, Export},
     global::Global,
     import::ImportObject,
@@ -10,9 +10,9 @@ use crate::{
     table::Table,
     typed_func::{always_trap, Func},
     types::{
-        ImportedFuncIndex, ImportedGlobalIndex, ImportedMemoryIndex, ImportedTableIndex,
-        Initializer, LocalFuncIndex, LocalGlobalIndex, LocalMemoryIndex, LocalOrImport,
-        LocalTableIndex, SigIndex, Value, GlobalInit,
+        GlobalInit, ImportedFuncIndex, ImportedGlobalIndex, ImportedMemoryIndex,
+        ImportedTableIndex, Initializer, LocalFuncIndex, LocalGlobalIndex, LocalMemoryIndex,
+        LocalOrImport, LocalTableIndex, SigIndex, Value,
     },
     vm,
 };
@@ -104,10 +104,8 @@ impl LocalBacking {
     }
 
     /// todo: add documentation
-    pub(crate) fn reset(
-        &mut self,
-        module_info: &ModuleInfo
-    ) -> RuntimeResult<()> {
+    pub(crate) fn reset(&mut self, module_info: &ModuleInfo) -> RuntimeResult<()> {
+        // todo: remove debug prints
         println!("Resetting ~ Local Backing:");
         Self::reset_globals(&module_info, &mut self.globals)?;
         Ok(())
@@ -115,11 +113,12 @@ impl LocalBacking {
 
     fn reset_globals(
         module_info: &ModuleInfo,
-        globals: &mut SliceMap<LocalGlobalIndex, Global>
+        globals: &mut SliceMap<LocalGlobalIndex, Global>,
     ) -> RuntimeResult<()> {
+        // todo: remove debug prints
         let init_globals = &module_info.globals;
         for (index, init_global) in init_globals.iter() {
-            let GlobalInit {desc, init} = init_global;
+            let GlobalInit { desc, init } = init_global;
 
             let value = if let Initializer::Const(v) = init {
                 v.clone()
@@ -127,17 +126,17 @@ impl LocalBacking {
                 return Err(RuntimeError(Box::new("Can only reset const globals")));
             };
 
-            match globals.get(index) {
+            match globals.get_mut(index) {
                 Some(g) => {
-                    if desc.mutable == true && value != g.get() {
+                    if desc.mutable == false && value != g.get() {
                         return Err(RuntimeError(Box::new("Immutable global found changed")));
                     }
                     g.set(value);
-                },
-                None => return Err(RuntimeError(Box::new("Missing global value to reset")))
+                }
+                None => return Err(RuntimeError(Box::new("Missing global value to reset"))),
             };
         }
-
+        println!("  [x] globals");
         Ok(())
     }
 
