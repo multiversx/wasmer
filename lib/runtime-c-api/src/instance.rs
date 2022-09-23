@@ -264,7 +264,7 @@ pub unsafe extern "C" fn wasmer_instantiate_reset(
     }
 
     let instance = &mut *(instance as *mut Instance);
-    instance.reset();
+    let _result = instance.reset();
     wasmer_result_t::WASMER_OK
 }
 
