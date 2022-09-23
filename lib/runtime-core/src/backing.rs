@@ -1,5 +1,5 @@
 use crate::{
-    error::{CreationError, LinkError, LinkResult, CallResult, RuntimeError, CallError},
+    error::{CreationError, LinkError, LinkResult, RuntimeResult, RuntimeError},
     export::{Context, Export},
     global::Global,
     import::ImportObject,
@@ -104,35 +104,37 @@ impl LocalBacking {
     }
 
     /// todo: add documentation
-    pub(crate) fn reset(&mut self, module_info: &ModuleInfo) {
+    pub(crate) fn reset(
+        &mut self,
+        module_info: &ModuleInfo
+    ) -> RuntimeResult<()> {
         println!("Resetting ~ Local Backing:");
-        Self::reset_globals(&module_info, &mut self.globals);
+        Self::reset_globals(&module_info, &mut self.globals)?;
+        Ok(())
     }
 
     fn reset_globals(
         module_info: &ModuleInfo,
         globals: &mut SliceMap<LocalGlobalIndex, Global>
-    ) -> CallResult<()> {
-        // todo: adapt code to reset all globals not only the stack offset
+    ) -> RuntimeResult<()> {
         let init_globals = &module_info.globals;
-        for (index, init_value) in init_globals.iter() {
-            let GlobalInit {desc, init} = init_value;
+        for (index, init_global) in init_globals.iter() {
+            let GlobalInit {desc, init} = init_global;
 
-            let value = match init {
-                Initializer::Const(v) => v.clone(),
-                _ => {
-                    return CallError::Runtime(RuntimeError(Box::new("Can only reset const globals")));
-                }
+            let value = if let Initializer::Const(v) = init {
+                v.clone()
+            } else {
+                return Err(RuntimeError(Box::new("Can only reset const globals")));
             };
 
-            let global = match globals.get(index) {
-                None => return CallError::Runtime(RuntimeError(Box::new("Missing global value to reset"))),
+            match globals.get(index) {
                 Some(g) => {
-                    if desc.mutable && value != g.get() {
-                        return CallError::Runtime(RuntimeError(Box::new("Immutable global found changed")));
+                    if desc.mutable == true && value != g.get() {
+                        return Err(RuntimeError(Box::new("Immutable global found changed")));
                     }
                     g.set(value);
                 },
+                None => return Err(RuntimeError(Box::new("Missing global value to reset")))
             };
         }
 
