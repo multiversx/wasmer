@@ -106,8 +106,28 @@ impl LocalBacking {
     /// todo: add documentation
     pub(crate) fn reset(&mut self, module_info: &ModuleInfo) -> RuntimeResult<()> {
         // todo: remove debug prints
-        println!("Resetting ~ Local Backing:");
+        println!("Resetting Local Backing:");
+        Self::reset_memories(&module_info, &mut self.memories)?;
+        Self::reset_tables(&module_info, &mut self.tables)?;
         Self::reset_globals(&module_info, &mut self.globals)?;
+        Ok(())
+    }
+
+    fn reset_memories(
+        _module_info: &ModuleInfo,
+        _memories: &mut SliceMap<LocalMemoryIndex, Memory>,
+    ) -> RuntimeResult<()> {
+        // todo: remove debug prints
+        println!("  [x] memories");
+        Ok(())
+    }
+
+    fn reset_tables(
+        _module_info: &ModuleInfo,
+        _tables: &mut SliceMap<LocalTableIndex, Table>,
+    ) -> RuntimeResult<()> {
+        // todo: remove debug prints
+        println!("  [x] tables");
         Ok(())
     }
 
@@ -134,7 +154,7 @@ impl LocalBacking {
                     g.set(value);
                 }
                 None => return Err(RuntimeError(Box::new("Missing global value to reset"))),
-            };
+            }
         }
         println!("  [x] globals");
         Ok(())
