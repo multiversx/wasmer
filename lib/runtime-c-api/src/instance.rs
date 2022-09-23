@@ -267,12 +267,12 @@ pub unsafe extern "C" fn wasmer_instantiate_reset(
     let instance = &mut *(instance as *mut Instance);
 
     if let Err(error) = instance.reset() {
-                update_last_error(CApiError {
+        update_last_error(CApiError {
             msg: error.to_string(),
         });
         return wasmer_result_t::WASMER_ERROR;
     }
-        
+
     wasmer_result_t::WASMER_OK
 }
 
