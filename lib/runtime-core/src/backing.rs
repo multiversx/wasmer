@@ -4,7 +4,7 @@ use crate::{
     global::Global,
     import::ImportObject,
     memory::Memory,
-    module::{ImportName, ModuleInfo, ModuleInner},
+    module::{DataInitializer, ImportName, ModuleInfo, ModuleInner},
     sig_registry::SigRegistry,
     structures::{BoxedMap, Map, SliceMap, TypedIndex},
     table::Table,
@@ -118,27 +118,35 @@ impl LocalBacking {
         memories: &mut SliceMap<LocalMemoryIndex, Memory>,
     ) -> RuntimeResult<()> {
         // todo: remove debug prints
-        println!("  [x] memories");
-
-        for init in module_info.data_initializers.iter() {
-            let init_base = match init.base {
-                Initializer::Const(Value::I32(offset)) => offset as usize,
-                _ => return Err(RuntimeError(Box::new("Cannot reset")))
+        for data_initializer in module_info.data_initializers.iter() {
+            let DataInitializer {
+                memory_index,
+                base,
+                data,
+            } = data_initializer;
+            let base = if let Initializer::Const(Value::I32(value)) = base {
+                *value as usize
+            } else {
+                return Err(RuntimeError(Box::new(
+                    "Can only reset memories with const base",
+                )));
             };
 
-            match init.memory_index.local_or_import(&module_info) {
-                LocalOrImport::Local(local_memory_index) => {
-                    let mem = &memories[local_memory_index];
-                    let vm_mem_slice = &mem.view()[init_base..init_base + init.data.len()];
-                    let zipped_mem = vm_mem_slice.iter().zip(init.data.iter());
-                    for (mem_byte, data_byte) in zipped_mem {
-                        mem_byte.set(*data_byte);
+            if let LocalOrImport::Local(index) = memory_index.local_or_import(&module_info) {
+                if let Some(memory) = memories.get_mut(index) {
+                    let cells = &memory.view()[base..base + data.len()];
+                    let cells = cells.iter().zip(data.iter());
+                    for (cell, data) in cells {
+                        cell.set(*data);
                     }
-                },
-                _ => return Err(RuntimeError(Box::new("Cannot reset"))),
+                } else {
+                    return Err(RuntimeError(Box::new("Missing memory to reset")));
+                }
+            } else {
+                return Err(RuntimeError(Box::new("Can only reset local memories")));
             }
         }
-
+        println!("  [x] memories");
         Ok(())
     }
 
@@ -156,24 +164,21 @@ impl LocalBacking {
         globals: &mut SliceMap<LocalGlobalIndex, Global>,
     ) -> RuntimeResult<()> {
         // todo: remove debug prints
-        let init_globals = &module_info.globals;
-        for (index, init_global) in init_globals.iter() {
-            let GlobalInit { desc, init } = init_global;
-
-            let value = if let Initializer::Const(v) = init {
-                v.clone()
+        for (index, global_init) in module_info.globals.iter() {
+            let GlobalInit { desc, init } = global_init;
+            let value = if let Initializer::Const(value) = init {
+                value.clone()
             } else {
                 return Err(RuntimeError(Box::new("Can only reset const globals")));
             };
 
-            match globals.get(index) {
-                Some(g) => {
-                    if desc.mutable == false && value != g.get() {
-                        return Err(RuntimeError(Box::new("Immutable global found changed")));
-                    }
-                    g.set(value);
+            if let Some(global) = globals.get_mut(index) {
+                if desc.mutable == false && value != global.get() {
+                    return Err(RuntimeError(Box::new("Immutable global found changed")));
                 }
-                None => return Err(RuntimeError(Box::new("Missing global value to reset"))),
+                global.set(value);
+            } else {
+                return Err(RuntimeError(Box::new("Missing global to reset")));
             }
         }
         println!("  [x] globals");
