@@ -114,11 +114,31 @@ impl LocalBacking {
     }
 
     fn reset_memories(
-        _module_info: &ModuleInfo,
-        _memories: &mut SliceMap<LocalMemoryIndex, Memory>,
+        module_info: &ModuleInfo,
+        memories: &mut SliceMap<LocalMemoryIndex, Memory>,
     ) -> RuntimeResult<()> {
         // todo: remove debug prints
         println!("  [x] memories");
+
+        for init in module_info.data_initializers.iter() {
+            let init_base = match init.base {
+                Initializer::Const(Value::I32(offset)) => offset as usize,
+                _ => return Err(RuntimeError(Box::new("Cannot reset")))
+            };
+
+            match init.memory_index.local_or_import(&module_info) {
+                LocalOrImport::Local(local_memory_index) => {
+                    let mem = &memories[local_memory_index];
+                    let vm_mem_slice = &mem.view()[init_base..init_base + init.data.len()];
+                    let zipped_mem = vm_mem_slice.iter().zip(init.data.iter());
+                    for (mem_byte, data_byte) in zipped_mem {
+                        mem_byte.set(*data_byte);
+                    }
+                },
+                _ => return Err(RuntimeError(Box::new("Cannot reset"))),
+            }
+        }
+
         Ok(())
     }
 
@@ -146,7 +166,7 @@ impl LocalBacking {
                 return Err(RuntimeError(Box::new("Can only reset const globals")));
             };
 
-            match globals.get_mut(index) {
+            match globals.get(index) {
                 Some(g) => {
                     if desc.mutable == false && value != g.get() {
                         return Err(RuntimeError(Box::new("Immutable global found changed")));
@@ -188,7 +208,12 @@ impl LocalBacking {
     fn generate_memories(
         module: &ModuleInner,
     ) -> Result<BoxedMap<LocalMemoryIndex, Memory>, CreationError> {
-        let mut memories = Map::with_capacity(module.info.memories.len());
+        let memory_count = module.info.memories.len();
+        if memory_count > 1 {
+            return Err(CreationError::UnableToCreateMemory);
+        }
+
+        let mut memories = Map::with_capacity(memory_count);
         for (_, &desc) in &module.info.memories {
             let memory = Memory::new(desc)?;
             memories.push(memory);
