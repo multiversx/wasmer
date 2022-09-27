@@ -103,7 +103,7 @@ impl LocalBacking {
         })
     }
 
-    /// Reset the `LocalBacking` (`Memories` and `Globals`) for an `Instance` using provided `ModuleInfo`
+    /// Resets the `LocalBacking` (`Memories` and `Globals`) for an `Instance` using the provided `ModuleInfo`
     pub(crate) fn reset(&mut self, module_info: &ModuleInfo) -> RuntimeResult<()> {
         Self::reset_memories(&module_info, &mut self.memories)?;
         Self::reset_globals(&module_info, &mut self.globals)?;

@@ -67,14 +67,17 @@ impl Memory {
     /// }
     /// ```
     pub fn new(desc: MemoryDescriptor) -> CreationResult<Self> {
-        if let Some(max) = desc.maximum {
-            if max < desc.minimum {
-                return Err(CreationError::InvalidDescriptor(
-                    "Max number of memory pages is less than the minimum number of pages"
-                        .to_string(),
-                ));
+        match desc.maximum {
+            Some(max) => {
+                if max < desc.minimum {
+                    return Err(CreationError::InvalidDescriptor(
+                        "Max number of memory pages is less than the minimum number of pages"
+                            .to_string(),
+                    ));
+                }
+                Self::validate_memory_pages_count(max)?;
             }
-            Self::validate_memory_pages_count(max)?;
+            None => Self::validate_memory_pages_count(desc.minimum)?,
         }
 
         if desc.shared && desc.maximum.is_none() {
@@ -96,7 +99,7 @@ impl Memory {
         let count = pages.0 as usize;
         if count > MAX_MEMORY_PAGES_COUNT {
             return Err(CreationError::InvalidDescriptor(format!(
-                "Max number of memory pages: {} is more than the alllowed number of pages: {}",
+                "Number of memory pages used: {} is more than the alllowed number of pages: {}",
                 count, MAX_MEMORY_PAGES_COUNT
             )));
         }

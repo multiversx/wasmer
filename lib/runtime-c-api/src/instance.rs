@@ -250,7 +250,7 @@ pub unsafe extern "C" fn wasmer_instantiate_with_options(
     wasmer_result_t::WASMER_OK
 }
 
-/// Resets an WebAssembly instance, cleaning memory annd globals
+/// Resets an WebAssembly instance, cleaning memory and globals
 #[allow(clippy::cast_ptr_alignment)]
 #[no_mangle]
 pub unsafe extern "C" fn wasmer_instantiate_reset(
