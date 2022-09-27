@@ -166,9 +166,11 @@ impl LocalBacking {
                 }
             };
 
-            match globals.get_mut(index) {
-                Some(global) => global.set(value),
-                None => return Err(RuntimeError(Box::new("Undefined global"))),
+            if global_init.desc.mutable {
+                match globals.get_mut(index) {
+                    Some(global) => global.set(value),
+                    None => return Err(RuntimeError(Box::new("Undefined global"))),
+                }
             }
         }
 

@@ -30,7 +30,7 @@ mod view;
 /// Maximum `Memories` allowed
 pub const MAX_MEMORIES_COUNT: usize = 1;
 /// Maxium `Pages` allowed per `Memory`
-pub const MAX_MEMORY_PAGES_COUNT: Pages = Pages(10);
+pub const MAX_MEMORY_PAGES_COUNT: Pages = Pages(20);
 
 #[derive(Clone)]
 enum MemoryVariant {
