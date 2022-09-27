@@ -27,7 +27,7 @@ pub mod ptr;
 mod static_;
 mod view;
 
-/// todo: add documentation
+/// TODO: add documentation
 pub const MAX_MEMORIES_COUNT: usize = 1;
 
 #[derive(Clone)]
