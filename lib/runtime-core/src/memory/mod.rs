@@ -30,7 +30,7 @@ mod view;
 /// Maximum `Memories` allowed
 pub const MAX_MEMORIES_COUNT: usize = 1;
 /// Maxium `Pages` allowed per `Memory`
-pub const MAX_MEMORY_PAGES_COUNT: usize = 10;
+pub const MAX_MEMORY_PAGES_COUNT: Pages = Pages(10);
 
 #[derive(Clone)]
 enum MemoryVariant {
@@ -96,11 +96,10 @@ impl Memory {
     }
 
     fn validate_memory_pages_count(pages: Pages) -> CreationResult<()> {
-        let count = pages.0 as usize;
-        if count > MAX_MEMORY_PAGES_COUNT {
+        if pages > MAX_MEMORY_PAGES_COUNT {
             return Err(CreationError::InvalidDescriptor(format!(
-                "Number of memory pages used: {} is more than the alllowed number of pages: {}",
-                count, MAX_MEMORY_PAGES_COUNT
+                "Number of memory pages used: {:?} is more than the alllowed number of pages: {:?}",
+                pages, MAX_MEMORY_PAGES_COUNT
             )));
         }
 
