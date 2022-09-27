@@ -103,9 +103,9 @@ impl LocalBacking {
         })
     }
 
-    /// todo: add documentation
+    /// TODO: add documentation
     pub(crate) fn reset(&mut self, module_info: &ModuleInfo) -> RuntimeResult<()> {
-        // todo: remove debug prints
+        // TODO: remove debug prints
         println!("Resetting Local Backing:");
         Self::reset_memories(&module_info, &mut self.memories)?;
         Self::reset_tables(&module_info, &mut self.tables)?;
@@ -117,7 +117,7 @@ impl LocalBacking {
         module_info: &ModuleInfo,
         memories: &mut SliceMap<LocalMemoryIndex, Memory>,
     ) -> RuntimeResult<()> {
-        // todo: remove debug prints
+        // TODO: remove debug prints
         for data_initializer in module_info.data_initializers.iter() {
             let DataInitializer {
                 memory_index,
@@ -134,6 +134,9 @@ impl LocalBacking {
 
             if let LocalOrImport::Local(index) = memory_index.local_or_import(&module_info) {
                 if let Some(memory) = memories.get_mut(index) {
+                    // ?let's debug some memory info
+                    println!("  Memory: {:?}", memory);
+
                     let cells = &memory.view()[base..base + data.len()];
                     let cells = cells.iter().zip(data.iter());
                     for (cell, data) in cells {
@@ -150,11 +153,13 @@ impl LocalBacking {
         Ok(())
     }
 
+    // ? do we really need this
+    #[allow(clippy::cast_ptr_alignment)]
     fn reset_tables(
         module_info: &ModuleInfo,
         _tables: &mut SliceMap<LocalTableIndex, Table>,
     ) -> RuntimeResult<()> {
-        // todo: remove debug prints
+        // TODO: remove debug prints
         for table_initializer in &module_info.elem_initializers {
             let TableInitializer {
                 table_index: _,
@@ -168,6 +173,42 @@ impl LocalBacking {
                     "Can only reset tables with const base",
                 )));
             };
+
+            // FIXME: need `module` as @param
+            // if let LocalOrImport::Local(index) = table_index {
+            //     if let Some(table) = tables.get_mut(index) {
+            //         table.anyfunc_direct_access_mut(|elements| {
+            //             for (i, &func_index) in elements.iter().enumerate() {
+            //                 let sig_index = module_info.func_assoc[func_index];
+            //                 let signature = SigRegistry
+            //                     .lookup_signature_ref(&module_info.signatures[sig_index]);
+            //                 let sig_id =
+            //                     vm::SigId(SigRegistry.lookup_sig_index(signature).index() as u32);
+            //                 let (func, ctx) = if let LocalOrImport::Local(local_func_index) =
+            //                     func_index.local_or_import(&module_info)
+            //                 {
+            //                     (
+            //                         module
+            //                             .runnable_module
+            //                             .get_func(&module_info, local_func_index)
+            //                             .unwrap()
+            //                             .as_ptr()
+            //                             as *const vm::Func,
+            //                         vmctx,
+            //                     )
+            //                 } else {
+            //                     continue;
+            //                 };
+
+            //                 elements[base + i] = vm::Anyfunc { func, ctx, sig_id };
+            //             }
+            //         });
+            //     } else {
+            //         return Err(RuntimeError(Box::new("Missing table to reset")));
+            //     }
+            // } else {
+            //     return Err(RuntimeError(Box::new("Can only reset local table")));
+            // }
         }
         println!("  [x] tables");
         Ok(())
@@ -177,7 +218,7 @@ impl LocalBacking {
         module_info: &ModuleInfo,
         globals: &mut SliceMap<LocalGlobalIndex, Global>,
     ) -> RuntimeResult<()> {
-        // todo: remove debug prints
+        // TODO: remove debug prints
         for (index, global_init) in module_info.globals.iter() {
             let GlobalInit { desc, init } = global_init;
             let value = if let Initializer::Const(value) = init {
@@ -234,6 +275,11 @@ impl LocalBacking {
 
         let mut memories = Map::with_capacity(memories_count);
         for (_, &desc) in &module.info.memories {
+            // ?move conditionn onn a lower layer
+            // ?handle pages count ('10' can be cached into a const like `MAX_MEMORIES_COUNT`)
+            if desc.minimum.0 > 10 {
+                return Err(CreationError::UnableToCreateMemory);
+            }
             let memory = Memory::new(desc)?;
             memories.push(memory);
         }

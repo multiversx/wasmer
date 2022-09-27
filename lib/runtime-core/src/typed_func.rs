@@ -378,7 +378,7 @@ impl<'a> DynamicFunc<'a> {
             fn drop(&mut self) {
                 unsafe {
                     TrampolineBufferBuilder::remove_global(self.ptr);
-                    Box::from_raw(self.ctx);
+                    drop(Box::from_raw(self.ctx));
                 }
             }
         }

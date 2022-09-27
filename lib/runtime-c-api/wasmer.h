@@ -1149,7 +1149,7 @@ wasmer_result_t wasmer_instantiate(wasmer_instance_t **instance,
                                    int imports_len);
 
 /**
- * todo: add documentation
+ * TODO: add documentation
  */
 wasmer_result_t wasmer_instantiate_reset(wasmer_instance_t *instance);
 

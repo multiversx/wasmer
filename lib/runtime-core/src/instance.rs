@@ -144,7 +144,7 @@ impl Instance {
         Ok(instance)
     }
 
-    /// todo: add documentation
+    /// TODO: add documentation
     pub fn reset(&mut self) -> RuntimeResult<()> {
         self.inner.backing.reset(&self.module.info)?;
         Ok(())
