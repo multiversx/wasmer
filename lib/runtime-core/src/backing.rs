@@ -108,7 +108,6 @@ impl LocalBacking {
         // TODO: remove debug prints
         println!("Resetting Local Backing:");
         Self::reset_memories(&module_info, &mut self.memories)?;
-        Self::reset_tables(&module_info, &mut self.tables)?;
         Self::reset_globals(&module_info, &mut self.globals)?;
         Ok(())
     }
@@ -153,90 +152,24 @@ impl LocalBacking {
         Ok(())
     }
 
-    // ? do we really need this
-    #[allow(clippy::cast_ptr_alignment)]
-    fn reset_tables(
-        module_info: &ModuleInfo,
-        _tables: &mut SliceMap<LocalTableIndex, Table>,
-    ) -> RuntimeResult<()> {
-        // TODO: remove debug prints
-        for table_initializer in &module_info.elem_initializers {
-            let TableInitializer {
-                table_index: _,
-                base,
-                elements: _,
-            } = table_initializer;
-            let _base = if let Initializer::Const(Value::I32(value)) = base {
-                *value as usize
-            } else {
-                return Err(RuntimeError(Box::new(
-                    "Can only reset tables with const base",
-                )));
-            };
-
-            // FIXME: need `module` as @param
-            // if let LocalOrImport::Local(index) = table_index {
-            //     if let Some(table) = tables.get_mut(index) {
-            //         table.anyfunc_direct_access_mut(|elements| {
-            //             for (i, &func_index) in elements.iter().enumerate() {
-            //                 let sig_index = module_info.func_assoc[func_index];
-            //                 let signature = SigRegistry
-            //                     .lookup_signature_ref(&module_info.signatures[sig_index]);
-            //                 let sig_id =
-            //                     vm::SigId(SigRegistry.lookup_sig_index(signature).index() as u32);
-            //                 let (func, ctx) = if let LocalOrImport::Local(local_func_index) =
-            //                     func_index.local_or_import(&module_info)
-            //                 {
-            //                     (
-            //                         module
-            //                             .runnable_module
-            //                             .get_func(&module_info, local_func_index)
-            //                             .unwrap()
-            //                             .as_ptr()
-            //                             as *const vm::Func,
-            //                         vmctx,
-            //                     )
-            //                 } else {
-            //                     continue;
-            //                 };
-
-            //                 elements[base + i] = vm::Anyfunc { func, ctx, sig_id };
-            //             }
-            //         });
-            //     } else {
-            //         return Err(RuntimeError(Box::new("Missing table to reset")));
-            //     }
-            // } else {
-            //     return Err(RuntimeError(Box::new("Can only reset local table")));
-            // }
-        }
-        println!("  [x] tables");
-        Ok(())
-    }
-
     fn reset_globals(
         module_info: &ModuleInfo,
         globals: &mut SliceMap<LocalGlobalIndex, Global>,
     ) -> RuntimeResult<()> {
-        // TODO: remove debug prints
         for (index, global_init) in module_info.globals.iter() {
             let GlobalInit { desc, init } = global_init;
-            let value = if let Initializer::Const(value) = init {
-                value.clone()
-            } else {
-                return Err(RuntimeError(Box::new("Can only reset const globals")));
+
+            let value = match init {
+                Initializer::Const(value) => value.clone(),
+                _ => return Err(RuntimeError(Box::new("Can only reset const globals")))
             };
 
-            if let Some(global) = globals.get_mut(index) {
-                if desc.mutable == false && value != global.get() {
-                    return Err(RuntimeError(Box::new("Immutable global found changed")));
-                }
-                global.set(value);
-            } else {
-                return Err(RuntimeError(Box::new("Missing global to reset")));
+            match globals.get_mut(index) {
+                Some(global) => global.set(value),
+                _ => return Err(RuntimeError(Box::new("Missing global to reset")))
             }
         }
-        println!("  [x] globals");
+
         Ok(())
     }
 
