@@ -1,7 +1,7 @@
 //! The memory module contains the implementation data structures and helper functions used to
 //! manipulate and access wasm memory.
 use crate::{
-    error::{CreationError, GrowError},
+    error::{CreationError, CreationResult, GrowError},
     export::Export,
     import::IsExport,
     memory::dynamic::DYNAMIC_GUARD_SIZE,
@@ -27,8 +27,10 @@ pub mod ptr;
 mod static_;
 mod view;
 
-/// TODO: add documentation
+/// Maximum `Memories` allowed
 pub const MAX_MEMORIES_COUNT: usize = 1;
+/// Maxium `Pages` allowed per `Memory`
+pub const MAX_MEMORY_PAGES_COUNT: usize = 10;
 
 #[derive(Clone)]
 enum MemoryVariant {
@@ -64,7 +66,7 @@ impl Memory {
     ///     Ok(())
     /// }
     /// ```
-    pub fn new(desc: MemoryDescriptor) -> Result<Self, CreationError> {
+    pub fn new(desc: MemoryDescriptor) -> CreationResult<Self> {
         if let Some(max) = desc.maximum {
             if max < desc.minimum {
                 return Err(CreationError::InvalidDescriptor(
@@ -72,6 +74,7 @@ impl Memory {
                         .to_string(),
                 ));
             }
+            Self::validate_memory_pages_count(max)?;
         }
 
         if desc.shared && desc.maximum.is_none() {
@@ -87,6 +90,18 @@ impl Memory {
         };
 
         Ok(Memory { desc, variant })
+    }
+
+    fn validate_memory_pages_count(pages: Pages) -> CreationResult<()> {
+        let count = pages.0 as usize;
+        if count > MAX_MEMORY_PAGES_COUNT {
+            return Err(CreationError::InvalidDescriptor(format!(
+                "Max number of memory pages: {} is more than the alllowed number of pages: {}",
+                count, MAX_MEMORY_PAGES_COUNT
+            )));
+        }
+
+        Ok(())
     }
 
     /// Return the [`MemoryDescriptor`] that this memory

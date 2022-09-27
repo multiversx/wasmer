@@ -16,18 +16,16 @@ use wasmer_runtime_core::{
     import::{ImportObject, Namespace},
 };
 
+use crate::metering::OPCODE_COSTS;
 use wasmer_runtime_core::backend::Compiler;
 use wasmer_runtime_core::codegen::{MiddlewareChain, StreamingCompiler};
-use crate::metering::OPCODE_COSTS;
 
 #[cfg(not(feature = "cranelift-backend"))]
 use wasmer_middleware_common::metering;
 
-use wasmer_middleware_common::runtime_breakpoints;
-use wasmer_middleware_common::opcode_trace;
 use wasmer_middleware_common::opcode_control;
-
-
+use wasmer_middleware_common::opcode_trace;
+use wasmer_middleware_common::runtime_breakpoints;
 
 /// Opaque pointer to a `wasmer_runtime::Instance` value in Rust.
 ///
@@ -191,7 +189,6 @@ pub unsafe extern "C" fn wasmer_instantiate(
     wasmer_result_t::WASMER_OK
 }
 
-
 #[repr(C)]
 pub struct wasmer_import_object_t;
 
@@ -232,7 +229,9 @@ pub unsafe extern "C" fn wasmer_instantiate_with_options(
     let new_module = match result_compilation {
         Ok(module) => module,
         Err(_) => {
-            update_last_error(CApiError { msg: "compile error".to_string() });
+            update_last_error(CApiError {
+                msg: "compile error".to_string(),
+            });
             return wasmer_result_t::WASMER_ERROR;
         }
     };
@@ -251,7 +250,7 @@ pub unsafe extern "C" fn wasmer_instantiate_with_options(
     wasmer_result_t::WASMER_OK
 }
 
-/// TODO: add documentation
+/// Resets an WebAssembly instance, cleaning memory annd globals
 #[allow(clippy::cast_ptr_alignment)]
 #[no_mangle]
 pub unsafe extern "C" fn wasmer_instantiate_reset(
@@ -277,8 +276,8 @@ pub unsafe extern "C" fn wasmer_instantiate_reset(
 }
 
 pub unsafe fn prepare_middleware_chain_generator(
-    options: &CompilationOptions
-    ) -> impl Fn() -> MiddlewareChain + '_ {
+    options: &CompilationOptions,
+) -> impl Fn() -> MiddlewareChain + '_ {
     let options = options.clone();
 
     let chain_generator = move || {
@@ -287,15 +286,15 @@ pub unsafe fn prepare_middleware_chain_generator(
         if options.metering {
             #[cfg(feature = "metering")]
             chain.push(metering::Metering::new(
-                    &OPCODE_COSTS,
-                    options.unmetered_locals
-                ));
+                &OPCODE_COSTS,
+                options.unmetered_locals,
+            ));
         }
 
         chain.push(opcode_control::OpcodeControl::new(
-                options.max_memory_grow,
-                options.max_memory_grow_delta
-            ));
+            options.max_memory_grow,
+            options.max_memory_grow_delta,
+        ));
 
         // The RuntimeBreakpointHandler must be the last middleware in the chain (OpcodeTracer is
         // an exception since it does not alter the opcodes meaningfully.
@@ -323,10 +322,10 @@ pub unsafe fn get_compiler(chain_generator: impl Fn() -> MiddlewareChain) -> imp
     #[cfg(feature = "cranelift-backend")]
     use wasmer_clif_backend::CraneliftModuleCodeGenerator as MeteredMCG;
 
-    let compiler: StreamingCompiler<MeteredMCG, _, _, _, _> = StreamingCompiler::new(chain_generator);
+    let compiler: StreamingCompiler<MeteredMCG, _, _, _, _> =
+        StreamingCompiler::new(chain_generator);
     compiler
 }
-
 
 /// Returns the instance context. Learn more by looking at the
 /// `wasmer_instance_context_t` struct.
@@ -511,7 +510,8 @@ pub unsafe extern "C" fn wasmer_instance_call(
         }
     };
 
-    let last_opcode_location = wasmer_middleware_common::opcode_trace::get_opcodetracer_last_location(instance);
+    let last_opcode_location =
+        wasmer_middleware_common::opcode_trace::get_opcodetracer_last_location(instance);
     if last_opcode_location > 0 {
         let imported_functions = instance.module.info.name_table.to_vec();
         for i in 0..imported_functions.len() {
@@ -522,7 +522,10 @@ pub unsafe extern "C" fn wasmer_instance_call(
             println!("Export {:?}\t{}", v, k);
         }
 
-        println!("wasmer_instance_call OPCODE_LAST_LOCATION = {}", last_opcode_location);
+        println!(
+            "wasmer_instance_call OPCODE_LAST_LOCATION = {}",
+            last_opcode_location
+        );
     }
 
     result

@@ -4,15 +4,15 @@ use crate::{
     global::Global,
     import::ImportObject,
     memory::{Memory, MAX_MEMORIES_COUNT},
-    module::{DataInitializer, ImportName, ModuleInfo, ModuleInner, TableInitializer},
+    module::{DataInitializer, ImportName, ModuleInfo, ModuleInner},
     sig_registry::SigRegistry,
     structures::{BoxedMap, Map, SliceMap, TypedIndex},
     table::Table,
     typed_func::{always_trap, Func},
     types::{
-        GlobalInit, ImportedFuncIndex, ImportedGlobalIndex, ImportedMemoryIndex,
-        ImportedTableIndex, Initializer, LocalFuncIndex, LocalGlobalIndex, LocalMemoryIndex,
-        LocalOrImport, LocalTableIndex, SigIndex, Value,
+        ImportedFuncIndex, ImportedGlobalIndex, ImportedMemoryIndex, ImportedTableIndex,
+        Initializer, LocalFuncIndex, LocalGlobalIndex, LocalMemoryIndex, LocalOrImport,
+        LocalTableIndex, SigIndex, Value,
     },
     vm,
 };
@@ -103,12 +103,11 @@ impl LocalBacking {
         })
     }
 
-    /// TODO: add documentation
+    /// Reset the `LocalBacking` (`Memories` and `Globals`) for an `Instance` using provided `ModuleInfo`
     pub(crate) fn reset(&mut self, module_info: &ModuleInfo) -> RuntimeResult<()> {
-        // TODO: remove debug prints
-        println!("Resetting Local Backing:");
         Self::reset_memories(&module_info, &mut self.memories)?;
         Self::reset_globals(&module_info, &mut self.globals)?;
+
         Ok(())
     }
 
@@ -116,39 +115,42 @@ impl LocalBacking {
         module_info: &ModuleInfo,
         memories: &mut SliceMap<LocalMemoryIndex, Memory>,
     ) -> RuntimeResult<()> {
-        // TODO: remove debug prints
         for data_initializer in module_info.data_initializers.iter() {
             let DataInitializer {
                 memory_index,
                 base,
                 data,
             } = data_initializer;
-            let base = if let Initializer::Const(Value::I32(value)) = base {
-                *value as usize
-            } else {
-                return Err(RuntimeError(Box::new(
-                    "Can only reset memories with const base",
-                )));
+
+            let offset = match base {
+                Initializer::Const(Value::I32(value)) => *value as usize,
+                Initializer::Const(_) => {
+                    return Err(RuntimeError(Box::new("Const initializer must be an i32")))
+                }
+                Initializer::GetGlobal(_index) => {
+                    return Err(RuntimeError(Box::new("Initializer is not supported")))
+                }
             };
 
-            if let LocalOrImport::Local(index) = memory_index.local_or_import(&module_info) {
-                if let Some(memory) = memories.get_mut(index) {
-                    // ?let's debug some memory info
-                    println!("  Memory: {:?}", memory);
-
-                    let cells = &memory.view()[base..base + data.len()];
-                    let cells = cells.iter().zip(data.iter());
-                    for (cell, data) in cells {
-                        cell.set(*data);
+            match memory_index.local_or_import(&module_info) {
+                LocalOrImport::Local(index) => match memories.get_mut(index) {
+                    Some(memory) => {
+                        let cells = &memory.view()[offset..offset + data.len()];
+                        let zipped_cells = cells.iter().zip(data.iter());
+                        for (cell, data) in zipped_cells {
+                            cell.set(*data);
+                        }
                     }
-                } else {
-                    return Err(RuntimeError(Box::new("Missing memory to reset")));
+                    None => return Err(RuntimeError(Box::new("Undefined memory"))),
+                },
+                LocalOrImport::Import(_index) => {
+                    return Err(RuntimeError(Box::new(
+                        "Imported memory reset is not supported",
+                    )))
                 }
-            } else {
-                return Err(RuntimeError(Box::new("Can only reset local memories")));
             }
         }
-        println!("  [x] memories");
+
         Ok(())
     }
 
@@ -157,16 +159,16 @@ impl LocalBacking {
         globals: &mut SliceMap<LocalGlobalIndex, Global>,
     ) -> RuntimeResult<()> {
         for (index, global_init) in module_info.globals.iter() {
-            let GlobalInit { desc, init } = global_init;
-
-            let value = match init {
+            let value = match &global_init.init {
                 Initializer::Const(value) => value.clone(),
-                _ => return Err(RuntimeError(Box::new("Can only reset const globals")))
+                Initializer::GetGlobal(_index) => {
+                    return Err(RuntimeError(Box::new("Initializer is not supported")))
+                }
             };
 
             match globals.get_mut(index) {
                 Some(global) => global.set(value),
-                _ => return Err(RuntimeError(Box::new("Missing global to reset")))
+                None => return Err(RuntimeError(Box::new("Undefined global"))),
             }
         }
 
@@ -202,22 +204,23 @@ impl LocalBacking {
         module: &ModuleInner,
     ) -> CreationResult<BoxedMap<LocalMemoryIndex, Memory>> {
         let memories_count = module.info.memories.len();
-        if memories_count > MAX_MEMORIES_COUNT {
-            return Err(CreationError::UnableToCreateMemory);
-        }
+        Self::validate_memories_count(memories_count)?;
 
         let mut memories = Map::with_capacity(memories_count);
-        for (_, &desc) in &module.info.memories {
-            // ?move conditionn onn a lower layer
-            // ?handle pages count ('10' can be cached into a const like `MAX_MEMORIES_COUNT`)
-            if desc.minimum.0 > 10 {
-                return Err(CreationError::UnableToCreateMemory);
-            }
+        for (_index, &desc) in &module.info.memories {
             let memory = Memory::new(desc)?;
             memories.push(memory);
         }
 
         Ok(memories.into_boxed_map())
+    }
+
+    fn validate_memories_count(count: usize) -> CreationResult<()> {
+        if count > MAX_MEMORIES_COUNT {
+            return Err(CreationError::UnableToCreateMemory);
+        }
+
+        Ok(())
     }
 
     /// Validate each locally-defined memory in the Module.

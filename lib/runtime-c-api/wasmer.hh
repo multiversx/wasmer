@@ -945,7 +945,7 @@ wasmer_result_t wasmer_instantiate(wasmer_instance_t **instance,
                                    wasmer_import_t *imports,
                                    int imports_len);
 
-/// TODO: add documentation
+/// Resets an WebAssembly instance, cleaning memory annd globals
 wasmer_result_t wasmer_instantiate_reset(wasmer_instance_t *instance);
 
 wasmer_result_t wasmer_instantiate_with_options(wasmer_instance_t **instance,
