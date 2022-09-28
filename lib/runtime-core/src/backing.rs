@@ -10,9 +10,9 @@ use crate::{
     table::Table,
     typed_func::{always_trap, Func},
     types::{
-        ImportedFuncIndex, ImportedGlobalIndex, ImportedMemoryIndex, ImportedTableIndex,
-        Initializer, LocalFuncIndex, LocalGlobalIndex, LocalMemoryIndex, LocalOrImport,
-        LocalTableIndex, SigIndex, Value,
+        GlobalInit, ImportedFuncIndex, ImportedGlobalIndex, ImportedMemoryIndex,
+        ImportedTableIndex, Initializer, LocalFuncIndex, LocalGlobalIndex, LocalMemoryIndex,
+        LocalOrImport, LocalTableIndex, SigIndex, Value,
     },
     vm,
 };
@@ -159,14 +159,16 @@ impl LocalBacking {
         globals: &mut SliceMap<LocalGlobalIndex, Global>,
     ) -> RuntimeResult<()> {
         for (index, global_init) in module_info.globals.iter() {
-            let value = match &global_init.init {
+            let GlobalInit { desc, init } = global_init;
+
+            let value = match init {
                 Initializer::Const(value) => value.clone(),
                 Initializer::GetGlobal(_index) => {
                     return Err(RuntimeError(Box::new("Initializer is not supported")))
                 }
             };
 
-            if global_init.desc.mutable {
+            if desc.mutable {
                 match globals.get_mut(index) {
                     Some(global) => global.set(value),
                     None => return Err(RuntimeError(Box::new("Undefined global"))),
