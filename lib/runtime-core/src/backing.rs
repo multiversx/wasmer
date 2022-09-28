@@ -23,6 +23,9 @@ pub const INTERNALS_SIZE: usize = 256;
 
 pub(crate) struct Internals(pub(crate) [u64; INTERNALS_SIZE]);
 
+pub static mut RESET_BACKING_MEMORIES: bool = true;
+pub static mut RESET_BACKING_GLOBALS: bool = true;
+
 impl Debug for Internals {
     fn fmt(&self, formatter: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
         write!(formatter, "Internals({:?})", &self.0[..])
@@ -105,9 +108,17 @@ impl LocalBacking {
 
     /// Resets the `LocalBacking` (`Memories` and `Globals`) for an `Instance` using the provided `ModuleInfo`
     pub(crate) fn reset(&mut self, module_info: &ModuleInfo) -> RuntimeResult<()> {
-        Self::reset_memories(&module_info, &mut self.memories)?;
-        Self::reset_globals(&module_info, &mut self.globals)?;
+        unsafe {
+            if RESET_BACKING_MEMORIES {
+                println!("[WASMER] Resetting the memory");
+                Self::reset_memories(&module_info, &mut self.memories)?;
+            }
 
+            if RESET_BACKING_GLOBALS {
+                println!("[WASMER] Resetting the globals");
+                Self::reset_globals(&module_info, &mut self.globals)?;
+            }
+        }
         Ok(())
     }
 
@@ -154,6 +165,7 @@ impl LocalBacking {
         Ok(())
     }
 
+    #[allow(dead_code)]
     fn reset_globals(
         module_info: &ModuleInfo,
         globals: &mut SliceMap<LocalGlobalIndex, Global>,

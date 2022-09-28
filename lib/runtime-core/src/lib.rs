@@ -37,7 +37,9 @@ extern crate lazy_static;
 mod macros;
 #[doc(hidden)]
 pub mod backend;
-mod backing;
+
+#[doc(hidden)]
+pub mod backing;
 
 pub mod cache;
 pub mod codegen;
