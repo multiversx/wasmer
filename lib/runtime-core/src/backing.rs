@@ -126,6 +126,23 @@ impl LocalBacking {
         module_info: &ModuleInfo,
         memories: &mut SliceMap<LocalMemoryIndex, Memory>,
     ) -> RuntimeResult<()> {
+        Self::zero_memories(memories);
+        Self::reinitialize_memories(module_info, memories)
+    }
+
+    fn zero_memories(memories: &mut SliceMap<LocalMemoryIndex, Memory>) {
+        for (_index, memory) in memories.iter_mut() {
+            let view = &memory.view::<u64>();
+            for cell in view.iter() {
+                cell.set(0);
+            }
+        }
+    }
+
+    fn reinitialize_memories(
+        module_info: &ModuleInfo,
+        memories: &mut SliceMap<LocalMemoryIndex, Memory>,
+    ) -> RuntimeResult<()> {
         for data_initializer in module_info.data_initializers.iter() {
             let DataInitializer {
                 memory_index,
@@ -161,11 +178,9 @@ impl LocalBacking {
                 }
             }
         }
-
         Ok(())
     }
 
-    #[allow(dead_code)]
     fn reset_globals(
         module_info: &ModuleInfo,
         globals: &mut SliceMap<LocalGlobalIndex, Global>,
