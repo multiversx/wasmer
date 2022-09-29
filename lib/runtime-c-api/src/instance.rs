@@ -23,7 +23,7 @@ use wasmer_runtime_core::codegen::{MiddlewareChain, StreamingCompiler};
 #[cfg(not(feature = "cranelift-backend"))]
 use wasmer_middleware_common::metering;
 
-use wasmer_middleware_common::opcode_control;
+use wasmer_middleware_common::opcode_control::{self, reset_memory_grow_count};
 use wasmer_middleware_common::opcode_trace;
 use wasmer_middleware_common::runtime_breakpoints;
 
@@ -273,6 +273,8 @@ pub unsafe extern "C" fn wasmer_instantiate_reset(
         });
         return wasmer_result_t::WASMER_ERROR;
     }
+
+    reset_memory_grow_count(instance);
 
     wasmer_result_t::WASMER_OK
 }
