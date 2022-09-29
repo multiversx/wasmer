@@ -1,6 +1,5 @@
-use crate::error::GrowError;
 use crate::{
-    error::CreationError,
+    error::{CreationError, GrowError},
     sys,
     types::MemoryDescriptor,
     units::{Bytes, Pages},
@@ -26,6 +25,7 @@ pub struct DynamicMemory {
     memory: sys::Memory,
     current: Pages,
     max: Option<Pages>,
+    min: Pages,
 }
 
 impl DynamicMemory {
@@ -52,6 +52,7 @@ impl DynamicMemory {
             memory,
             current: desc.minimum,
             max: desc.maximum,
+            min: desc.minimum,
         });
         let storage_ptr: *mut DynamicMemory = &mut *storage;
 
@@ -104,6 +105,17 @@ impl DynamicMemory {
         let old_pages = self.current;
         self.current = new_pages;
         Ok(old_pages)
+    }
+
+    /// Shrink the memory to the minimum number of pages.
+    pub fn shrink_to_minimum(&mut self, local: &mut vm::LocalMemory) {
+        let min_size = self.min.bytes().0;
+        _= self.memory.split_at(min_size);
+
+        local.base = self.memory.as_ptr();
+        local.bound = min_size;
+
+        self.current = self.min;
     }
 
     /// Get this memory represented as a slice of bytes.

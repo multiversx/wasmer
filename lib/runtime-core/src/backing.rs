@@ -110,12 +110,10 @@ impl LocalBacking {
     pub(crate) fn reset(&mut self, module_info: &ModuleInfo) -> RuntimeResult<()> {
         unsafe {
             if RESET_BACKING_MEMORIES {
-                println!("[WASMER] Resetting the memory");
                 Self::reset_memories(&module_info, &mut self.memories)?;
             }
 
             if RESET_BACKING_GLOBALS {
-                println!("[WASMER] Resetting the globals");
                 Self::reset_globals(&module_info, &mut self.globals)?;
             }
         }
@@ -126,8 +124,16 @@ impl LocalBacking {
         module_info: &ModuleInfo,
         memories: &mut SliceMap<LocalMemoryIndex, Memory>,
     ) -> RuntimeResult<()> {
+        Self::shrink_memories(memories)?;
         Self::zero_memories(memories);
         Self::reinitialize_memories(module_info, memories)
+    }
+
+    fn shrink_memories(memories: &mut SliceMap<LocalMemoryIndex, Memory>) -> RuntimeResult<()> {
+        for (_index, memory) in memories.iter_mut() {
+            memory.shrink_to_minimum()?;
+        }
+        Ok(())
     }
 
     fn zero_memories(memories: &mut SliceMap<LocalMemoryIndex, Memory>) {

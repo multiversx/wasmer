@@ -1,7 +1,7 @@
 //! The memory module contains the implementation data structures and helper functions used to
 //! manipulate and access wasm memory.
 use crate::{
-    error::{CreationError, CreationResult, GrowError},
+    error::{CreationError, CreationResult, GrowError, RuntimeError, RuntimeResult},
     export::Export,
     import::IsExport,
     memory::dynamic::DYNAMIC_GUARD_SIZE,
@@ -127,6 +127,16 @@ impl Memory {
         match &self.variant {
             MemoryVariant::Unshared(unshared_mem) => unshared_mem.size(),
             MemoryVariant::Shared(shared_mem) => shared_mem.size(),
+        }
+    }
+
+    /// Shrink this memory to the minimum number of pages.
+    pub(crate) fn shrink_to_minimum(&self) -> RuntimeResult<()> {
+        match &self.variant {
+            MemoryVariant::Unshared(unshared_mem) => unshared_mem.shrink_to_minimum(),
+            MemoryVariant::Shared(_shared_mem) => Err(RuntimeError(Box::new(
+                "shrink_to_minimum is not supported for shared memories",
+            ))),
         }
     }
 
@@ -311,6 +321,24 @@ impl UnsharedMemory {
             UnsharedMemoryStorage::Dynamic(ref dynamic_memory) => dynamic_memory.size(),
             UnsharedMemoryStorage::Static(ref static_memory) => static_memory.size(),
         }
+    }
+
+    /// Shrink the memory to the minimum number of pages.
+    pub fn shrink_to_minimum(&self) -> RuntimeResult<()> {
+        let mut storage = self.internal.storage.lock().unwrap();
+        let mut local = self.internal.local.get();
+
+        match &mut *storage {
+            UnsharedMemoryStorage::Dynamic(dynamic_memory) => {
+                dynamic_memory.shrink_to_minimum(&mut local)
+            }
+            UnsharedMemoryStorage::Static(_static_memory) => {
+                return Err(RuntimeError(Box::new("Cannot shrink static memory")));
+            }
+        }
+
+        self.internal.local.set(local);
+        Ok(())
     }
 
     pub(crate) fn vm_local_memory(&self) -> *mut vm::LocalMemory {
