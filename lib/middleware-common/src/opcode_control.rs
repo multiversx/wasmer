@@ -115,7 +115,7 @@ impl FunctionMiddleware for OpcodeControl {
     }
 }
 
-/// Sets the number of points used by an Instance.
+/// Set internal field `FIELD_MEMORY_GROW_COUNT` to 0.
 pub fn reset_memory_grow_count(instance: &mut Instance) {
     instance.set_internal(&FIELD_MEMORY_GROW_COUNT, 0);
 }
