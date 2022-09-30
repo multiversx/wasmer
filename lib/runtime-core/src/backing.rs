@@ -113,8 +113,8 @@ impl LocalBacking {
         module_info: &ModuleInfo,
         memories: &SliceMap<LocalMemoryIndex, Memory>,
     ) -> RuntimeResult<()> {
-        Self::shrink_memories(memories)?;
         Self::zero_memories(memories);
+        Self::shrink_memories(memories)?;
         Self::reinitialize_memories(module_info, memories)
     }
 
