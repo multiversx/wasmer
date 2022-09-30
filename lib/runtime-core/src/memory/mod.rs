@@ -98,7 +98,7 @@ impl Memory {
     fn validate_memory_pages_count(pages: Pages) -> CreationResult<()> {
         if pages > MAX_MEMORY_PAGES_COUNT {
             return Err(CreationError::InvalidDescriptor(format!(
-                "Number of memory pages used: {:?} is more than the alllowed number of pages: {:?}",
+                "Number of memory pages used: {:?} is more than the allowed number of pages: {:?}",
                 pages, MAX_MEMORY_PAGES_COUNT
             )));
         }
@@ -330,7 +330,7 @@ impl UnsharedMemory {
 
         match &mut *storage {
             UnsharedMemoryStorage::Dynamic(dynamic_memory) => {
-                dynamic_memory.shrink_to_minimum(&mut local)
+                dynamic_memory.shrink_to_minimum(&mut local);
             }
             UnsharedMemoryStorage::Static(_static_memory) => {
                 return Err(RuntimeError(Box::new("Cannot shrink static memory")));

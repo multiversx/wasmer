@@ -27,8 +27,6 @@ use wasmer_middleware_common::opcode_control::{self, reset_memory_grow_count};
 use wasmer_middleware_common::opcode_trace;
 use wasmer_middleware_common::runtime_breakpoints;
 
-use wasmer_runtime_core::backing::{RESET_BACKING_GLOBALS, RESET_BACKING_MEMORIES};
-
 /// Opaque pointer to a `wasmer_runtime::Instance` value in Rust.
 ///
 /// A `wasmer_runtime::Instance` represents a WebAssembly instance. It
@@ -252,10 +250,10 @@ pub unsafe extern "C" fn wasmer_instantiate_with_options(
     wasmer_result_t::WASMER_OK
 }
 
-/// Resets an WebAssembly instance, cleaning memory and globals
+/// Reset an WebAssembly instance, cleaning memories and globals
 #[allow(clippy::cast_ptr_alignment)]
 #[no_mangle]
-pub unsafe extern "C" fn wasmer_instantiate_reset(
+pub unsafe extern "C" fn wasmer_instance_reset(
     instance: *mut wasmer_instance_t,
 ) -> wasmer_result_t {
     if instance.is_null() {
@@ -723,11 +721,4 @@ pub extern "C" fn wasmer_instance_destroy(instance: *mut wasmer_instance_t) {
     if !instance.is_null() {
         unsafe { Box::from_raw(instance as *mut Instance) };
     }
-}
-
-#[allow(clippy::cast_ptr_alignment)]
-#[no_mangle]
-pub unsafe extern "C" fn wasmer_instance_reset_options(reset_memories: bool, reset_globals: bool) {
-    RESET_BACKING_MEMORIES = reset_memories;
-    RESET_BACKING_GLOBALS = reset_globals;
 }

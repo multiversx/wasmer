@@ -146,10 +146,9 @@ impl Instance {
         Ok(instance)
     }
 
-    /// Resets an `Instance`
+    /// Reset an `Instance`
     pub fn reset(&mut self) -> RuntimeResult<()> {
-        self.inner.backing.reset(&self.module.info)?;
-        Ok(())
+        self.inner.backing.reset(&self.module.info)
     }
 
     /// Load an `Instance` using the given loader.

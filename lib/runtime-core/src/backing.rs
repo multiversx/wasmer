@@ -23,9 +23,6 @@ pub const INTERNALS_SIZE: usize = 256;
 
 pub(crate) struct Internals(pub(crate) [u64; INTERNALS_SIZE]);
 
-pub static mut RESET_BACKING_MEMORIES: bool = true;
-pub static mut RESET_BACKING_GLOBALS: bool = true;
-
 impl Debug for Internals {
     fn fmt(&self, formatter: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
         write!(formatter, "Internals({:?})", &self.0[..])
@@ -107,37 +104,29 @@ impl LocalBacking {
     }
 
     /// Resets the `LocalBacking` (`Memories` and `Globals`) for an `Instance` using the provided `ModuleInfo`
-    pub(crate) fn reset(&mut self, module_info: &ModuleInfo) -> RuntimeResult<()> {
-        unsafe {
-            if RESET_BACKING_MEMORIES {
-                Self::reset_memories(&module_info, &mut self.memories)?;
-            }
-
-            if RESET_BACKING_GLOBALS {
-                Self::reset_globals(&module_info, &mut self.globals)?;
-            }
-        }
-        Ok(())
+    pub(crate) fn reset(&self, module_info: &ModuleInfo) -> RuntimeResult<()> {
+        Self::reset_memories(&module_info, &self.memories)?;
+        Self::reset_globals(&module_info, &self.globals)
     }
 
     fn reset_memories(
         module_info: &ModuleInfo,
-        memories: &mut SliceMap<LocalMemoryIndex, Memory>,
+        memories: &SliceMap<LocalMemoryIndex, Memory>,
     ) -> RuntimeResult<()> {
         Self::shrink_memories(memories)?;
         Self::zero_memories(memories);
         Self::reinitialize_memories(module_info, memories)
     }
 
-    fn shrink_memories(memories: &mut SliceMap<LocalMemoryIndex, Memory>) -> RuntimeResult<()> {
-        for (_index, memory) in memories.iter_mut() {
+    fn shrink_memories(memories: &SliceMap<LocalMemoryIndex, Memory>) -> RuntimeResult<()> {
+        for (_index, memory) in memories.iter() {
             memory.shrink_to_minimum()?;
         }
         Ok(())
     }
 
-    fn zero_memories(memories: &mut SliceMap<LocalMemoryIndex, Memory>) {
-        for (_index, memory) in memories.iter_mut() {
+    fn zero_memories(memories: &SliceMap<LocalMemoryIndex, Memory>) {
+        for (_index, memory) in memories.iter() {
             let view = &memory.view::<u64>();
             for cell in view.iter() {
                 cell.set(0);
@@ -147,7 +136,7 @@ impl LocalBacking {
 
     fn reinitialize_memories(
         module_info: &ModuleInfo,
-        memories: &mut SliceMap<LocalMemoryIndex, Memory>,
+        memories: &SliceMap<LocalMemoryIndex, Memory>,
     ) -> RuntimeResult<()> {
         for data_initializer in module_info.data_initializers.iter() {
             let DataInitializer {
@@ -167,7 +156,7 @@ impl LocalBacking {
             };
 
             match memory_index.local_or_import(&module_info) {
-                LocalOrImport::Local(index) => match memories.get_mut(index) {
+                LocalOrImport::Local(index) => match memories.get(index) {
                     Some(memory) => {
                         let cells = &memory.view()[offset..offset + data.len()];
                         let zipped_cells = cells.iter().zip(data.iter());
@@ -189,7 +178,7 @@ impl LocalBacking {
 
     fn reset_globals(
         module_info: &ModuleInfo,
-        globals: &mut SliceMap<LocalGlobalIndex, Global>,
+        globals: &SliceMap<LocalGlobalIndex, Global>,
     ) -> RuntimeResult<()> {
         for (index, global_init) in module_info.globals.iter() {
             let GlobalInit { desc, init } = global_init;
@@ -202,7 +191,7 @@ impl LocalBacking {
             };
 
             if desc.mutable {
-                match globals.get_mut(index) {
+                match globals.get(index) {
                     Some(global) => global.set(value),
                     None => return Err(RuntimeError(Box::new("Undefined global"))),
                 }
