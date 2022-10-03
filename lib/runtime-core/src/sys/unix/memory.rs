@@ -6,7 +6,7 @@ use nix::libc;
 use page_size;
 use rkyv::{Archive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
 use std::ops::{Bound, RangeBounds};
-use std::{env, fs::File, os::unix::io::IntoRawFd, path::Path, ptr, slice, sync::Arc};
+use std::{fs::File, os::unix::io::IntoRawFd, path::Path, ptr, slice, sync::Arc};
 
 unsafe impl Send for Memory {}
 unsafe impl Sync for Memory {}
