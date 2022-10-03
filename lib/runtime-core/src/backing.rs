@@ -120,6 +120,7 @@ impl LocalBacking {
 
     fn shrink_memories(memories: &SliceMap<LocalMemoryIndex, Memory>) -> RuntimeResult<()> {
         for (_index, memory) in memories.iter() {
+            println!("[DEBUG] Memory: {:?}", memory);
             memory.shrink_to_minimum()?;
         }
         Ok(())

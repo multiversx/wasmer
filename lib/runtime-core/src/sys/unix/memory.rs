@@ -6,7 +6,9 @@ use nix::libc;
 use page_size;
 use rkyv::{Archive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
 use std::ops::{Bound, RangeBounds};
-use std::{fs::File, os::unix::io::IntoRawFd, path::Path, ptr, slice, sync::Arc};
+use std::{env, fs::File, os::unix::io::IntoRawFd, path::Path, ptr, slice, sync::Arc};
+
+static mut PANIC_COUNTER: i32 = 2;
 
 unsafe impl Send for Memory {}
 unsafe impl Sync for Memory {}
@@ -203,6 +205,15 @@ impl Memory {
             let second_ptr = unsafe { self.ptr.add(offset) };
             let second_size = self.size - offset;
 
+            println!("[MAIN] Memory: {:p}", self.ptr);
+            println!("  Total: {} bytes", self.size);
+            println!(
+                "Splitting at offset: {} [DYNAMIC_GUARD_SIZE(2^12 bytes) added]",
+                offset
+            );
+            println!("[UNMAP] Memory: {:p}", second_ptr);
+            println!("  Dropping: {} bytes", second_size);
+
             self.size = offset;
 
             let second = Memory {
@@ -257,6 +268,15 @@ impl Memory {
 
 impl Drop for Memory {
     fn drop(&mut self) {
+        unsafe {
+            if PANIC_COUNTER == 0 {
+                env::set_var("RUST_BACKTRACE", "full");
+                panic!("PANIC_COUNTER is 0, this should happen!");
+            }
+            PANIC_COUNTER -= 1;
+        }
+        println!("Dropping memory");
+        println!("ptr: {:p}", self.ptr);
         if !self.ptr.is_null() {
             let success = unsafe { libc::munmap(self.ptr as _, self.size) };
             assert_eq!(success, 0, "failed to unmap memory: {}", errno::errno());
