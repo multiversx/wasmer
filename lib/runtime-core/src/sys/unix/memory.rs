@@ -203,15 +203,6 @@ impl Memory {
             let second_ptr = unsafe { self.ptr.add(offset) };
             let second_size = self.size - offset;
 
-            println!("[MAIN] Memory: {:p}", self.ptr);
-            println!("  Total: {} bytes", self.size);
-            println!(
-                "Splitting at offset: {} [DYNAMIC_GUARD_SIZE(2^12 bytes) added]",
-                offset
-            );
-            println!("[UNMAP] Memory: {:p}", second_ptr);
-            println!("  Dropping: {} bytes", second_size);
-
             self.size = offset;
 
             let second = Memory {
