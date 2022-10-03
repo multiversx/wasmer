@@ -31,3 +31,5 @@ jobs:
           path: |
             target/release/*.so
             target/release/*.dylib
+            lib/runtime-c-api/wasmer.h
+            lib/runtime-c-api/wasmer.hh
