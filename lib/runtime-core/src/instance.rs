@@ -3,7 +3,9 @@
 use crate::{
     backend::RunnableModule,
     backing::{ImportBacking, LocalBacking},
-    error::{CallError, CallResult, ResolveError, ResolveResult, Result, RuntimeError},
+    error::{
+        CallError, CallResult, ResolveError, ResolveResult, Result, RuntimeError, RuntimeResult,
+    },
     export::{Context, Export, ExportIter, FuncPointer},
     global::Global,
     import::{ImportObject, LikeNamespace},
@@ -142,6 +144,11 @@ impl Instance {
         }
 
         Ok(instance)
+    }
+
+    /// Reset an `Instance`
+    pub fn reset(&mut self) -> RuntimeResult<()> {
+        self.inner.backing.reset(&self.module.info)
     }
 
     /// Load an `Instance` using the given loader.

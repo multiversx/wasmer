@@ -1,14 +1,12 @@
 use wasmer_runtime_core::{
     codegen::{Event, EventSink, FunctionMiddleware, InternalEvent},
-    wasmparser::{Operator, Type as WpType, TypeOrFuncType as WpTypeOrFuncType},
-    vm::InternalField,
     module::ModuleInfo,
+    vm::InternalField,
+    wasmparser::{Operator, Type as WpType, TypeOrFuncType as WpTypeOrFuncType},
+    Instance,
 };
 
-use crate::runtime_breakpoints::{
-    push_runtime_breakpoint,
-    BREAKPOINT_VALUE_MEMORY_LIMIT,
-};
+use crate::runtime_breakpoints::{push_runtime_breakpoint, BREAKPOINT_VALUE_MEMORY_LIMIT};
 
 static FIELD_MEMORY_GROW_COUNT: InternalField = InternalField::allocate();
 
@@ -46,9 +44,7 @@ impl OpcodeControl {
         sink.push(Event::Internal(InternalEvent::GetInternal(
             FIELD_MEMORY_GROW_COUNT.index() as _,
         )));
-        sink.push(Event::WasmOwned(Operator::I64Const{
-            value: 1 as i64,
-        }));
+        sink.push(Event::WasmOwned(Operator::I64Const { value: 1 as i64 }));
         sink.push(Event::WasmOwned(Operator::I64Add));
         sink.push(Event::Internal(InternalEvent::SetInternal(
             FIELD_MEMORY_GROW_COUNT.index() as _,
@@ -117,4 +113,9 @@ impl FunctionMiddleware for OpcodeControl {
         sink.push(op);
         Ok(())
     }
+}
+
+/// Set internal field `FIELD_MEMORY_GROW_COUNT` to 0.
+pub fn reset_memory_grow_count(instance: &mut Instance) {
+    instance.set_internal(&FIELD_MEMORY_GROW_COUNT, 0);
 }

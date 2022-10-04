@@ -428,6 +428,7 @@ macro_rules! define_map_index {
         /// Typed Index
         #[derive(Serialize, Deserialize, Archive, RkyvSerialize, RkyvDeserialize)]
         #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+        #[repr(C)]
         pub struct $ty (u32);
         impl TypedIndex for $ty {
             #[doc(hidden)]

@@ -1,7 +1,7 @@
 //! The memory module contains the implementation data structures and helper functions used to
 //! manipulate and access wasm memory.
 use crate::{
-    error::{CreationError, GrowError},
+    error::{CreationError, CreationResult, GrowError, RuntimeError, RuntimeResult},
     export::Export,
     import::IsExport,
     memory::dynamic::DYNAMIC_GUARD_SIZE,
@@ -14,7 +14,7 @@ use std::{cell::Cell, fmt, mem, sync::Arc};
 
 use std::sync::Mutex as StdMutex;
 
-use rkyv::{Archive, Serialize as RkyvSerialize, Deserialize as RkyvDeserialize};
+use rkyv::{Archive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
 
 pub use self::dynamic::DynamicMemory;
 pub use self::static_::StaticMemory;
@@ -26,6 +26,11 @@ mod dynamic;
 pub mod ptr;
 mod static_;
 mod view;
+
+/// Maximum `Memories` allowed
+pub const MAX_MEMORIES_COUNT: usize = 1;
+/// Maxium `Pages` allowed per `Memory`
+pub const MAX_MEMORY_PAGES_COUNT: Pages = Pages(20);
 
 #[derive(Clone)]
 enum MemoryVariant {
@@ -61,14 +66,18 @@ impl Memory {
     ///     Ok(())
     /// }
     /// ```
-    pub fn new(desc: MemoryDescriptor) -> Result<Self, CreationError> {
-        if let Some(max) = desc.maximum {
-            if max < desc.minimum {
-                return Err(CreationError::InvalidDescriptor(
-                    "Max number of memory pages is less than the minimum number of pages"
-                        .to_string(),
-                ));
+    pub fn new(desc: MemoryDescriptor) -> CreationResult<Self> {
+        match desc.maximum {
+            Some(max) => {
+                if max < desc.minimum {
+                    return Err(CreationError::InvalidDescriptor(
+                        "Max number of memory pages is less than the minimum number of pages"
+                            .to_string(),
+                    ));
+                }
+                Self::validate_memory_pages_count(max)?;
             }
+            None => Self::validate_memory_pages_count(desc.minimum)?,
         }
 
         if desc.shared && desc.maximum.is_none() {
@@ -84,6 +93,17 @@ impl Memory {
         };
 
         Ok(Memory { desc, variant })
+    }
+
+    fn validate_memory_pages_count(pages: Pages) -> CreationResult<()> {
+        if pages > MAX_MEMORY_PAGES_COUNT {
+            return Err(CreationError::InvalidDescriptor(format!(
+                "Number of memory pages used: {:?} is more than the allowed number of pages: {:?}",
+                pages, MAX_MEMORY_PAGES_COUNT
+            )));
+        }
+
+        Ok(())
     }
 
     /// Return the [`MemoryDescriptor`] that this memory
@@ -107,6 +127,16 @@ impl Memory {
         match &self.variant {
             MemoryVariant::Unshared(unshared_mem) => unshared_mem.size(),
             MemoryVariant::Shared(shared_mem) => shared_mem.size(),
+        }
+    }
+
+    /// Shrink this memory to the minimum number of pages.
+    pub(crate) fn shrink_to_minimum(&self) -> RuntimeResult<()> {
+        match &self.variant {
+            MemoryVariant::Unshared(unshared_mem) => unshared_mem.shrink_to_minimum(),
+            MemoryVariant::Shared(_shared_mem) => Err(RuntimeError(Box::new(
+                "shrink_to_minimum is not supported for shared memories",
+            ))),
         }
     }
 
@@ -175,7 +205,19 @@ impl fmt::Debug for Memory {
 }
 
 /// A kind a memory.
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, Archive, RkyvSerialize, RkyvDeserialize)]
+#[derive(
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Archive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
 pub enum MemoryType {
     /// A dynamic memory.
     Dynamic,
@@ -279,6 +321,24 @@ impl UnsharedMemory {
             UnsharedMemoryStorage::Dynamic(ref dynamic_memory) => dynamic_memory.size(),
             UnsharedMemoryStorage::Static(ref static_memory) => static_memory.size(),
         }
+    }
+
+    /// Shrink the memory to the minimum number of pages.
+    pub fn shrink_to_minimum(&self) -> RuntimeResult<()> {
+        let mut storage = self.internal.storage.lock().unwrap();
+        let mut local = self.internal.local.get();
+
+        match &mut *storage {
+            UnsharedMemoryStorage::Dynamic(dynamic_memory) => {
+                dynamic_memory.shrink_to_minimum(&mut local);
+            }
+            UnsharedMemoryStorage::Static(_static_memory) => {
+                return Err(RuntimeError(Box::new("Cannot shrink static memory")));
+            }
+        }
+
+        self.internal.local.set(local);
+        Ok(())
     }
 
     pub(crate) fn vm_local_memory(&self) -> *mut vm::LocalMemory {

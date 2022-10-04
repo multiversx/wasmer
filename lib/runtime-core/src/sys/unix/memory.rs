@@ -4,9 +4,9 @@ use crate::sys::{round_down_to_page_size, round_up_to_page_size};
 use errno;
 use nix::libc;
 use page_size;
+use rkyv::{Archive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
 use std::ops::{Bound, RangeBounds};
 use std::{fs::File, os::unix::io::IntoRawFd, path::Path, ptr, slice, sync::Arc};
-use rkyv::{Archive, Serialize as RkyvSerialize, Deserialize as RkyvDeserialize};
 
 unsafe impl Send for Memory {}
 unsafe impl Sync for Memory {}
@@ -100,7 +100,10 @@ impl Memory {
 
     /// Create a new memory with the given contents size and protection.
     /// Used when the size of the contents must be tracked (e.g. for rkyv deserialization).
-    pub fn with_content_size_protect(content_size: u32, protection: Protect) -> Result<Self, String> {
+    pub fn with_content_size_protect(
+        content_size: u32,
+        protection: Protect,
+    ) -> Result<Self, String> {
         let mut memory = Self::with_size_protect(content_size as usize, protection)?;
         memory.set_content_size(content_size);
         Ok(memory)
@@ -194,7 +197,7 @@ impl Memory {
     }
 
     /// Split this memory into multiple memories by the given offset.
-    pub fn split_at(mut self, offset: usize) -> (Memory, Memory) {
+    pub fn split_at(&mut self, offset: usize) -> (&mut Memory, Memory) {
         let page_size = page_size::get();
         if offset % page_size == 0 {
             let second_ptr = unsafe { self.ptr.add(offset) };
@@ -283,7 +286,18 @@ impl Clone for Memory {
 }
 
 /// Kinds of memory protection.
-#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, Archive, RkyvSerialize, RkyvDeserialize)]
+#[derive(
+    Serialize,
+    Deserialize,
+    Debug,
+    Copy,
+    Clone,
+    PartialEq,
+    Eq,
+    Archive,
+    RkyvSerialize,
+    RkyvDeserialize,
+)]
 #[allow(dead_code)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
