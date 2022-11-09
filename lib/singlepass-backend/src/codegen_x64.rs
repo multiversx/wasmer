@@ -12,22 +12,18 @@ use smallvec::SmallVec;
 use std::{
     any::Any,
     collections::{BTreeMap, HashMap},
+    convert::TryInto,
     ffi::c_void,
     iter, mem,
     ptr::NonNull,
     slice,
     sync::{Arc, RwLock},
     usize,
-    convert::TryInto,
 };
 
 use rkyv::{
-    Archive,
-    Archived,
-    Serialize as RkyvSerialize,
-    Deserialize as RkyvDeserialize,
-    ser::Serializer,
-    ser::serializers::AllocSerializer,
+    ser::serializers::AllocSerializer, ser::Serializer, Archive, Archived,
+    Deserialize as RkyvDeserialize, Serialize as RkyvSerialize,
 };
 
 use bincode;
@@ -347,8 +343,8 @@ impl RunnableModule for X64ExecutionContext {
 
     fn get_exception_table(&self) -> Option<&ExceptionTable> {
         match &self.exception_table {
-            Some(etable) => { Some(&etable) }
-            None => None
+            Some(etable) => Some(&etable),
+            None => None,
         }
     }
 
@@ -401,6 +397,7 @@ impl RunnableModule for X64ExecutionContext {
             error_out: *mut Option<Box<dyn Any + Send>>,
             num_params_plus_one: Option<NonNull<c_void>>,
         ) -> bool {
+            println!("WASMER\t\tinvoke");
             let rm: &Box<dyn RunnableModule> = &(&*(*ctx).module).runnable_module;
 
             let args =
@@ -411,6 +408,7 @@ impl RunnableModule for X64ExecutionContext {
                     // Puts the arguments onto the stack and calls Wasm entry.
                     #[cfg(target_arch = "x86_64")]
                     {
+                        println!("WASMER\t\tinvoke CONSTRUCT_STACK_AND_CALL_WASM");
                         let args_reverse: SmallVec<[u64; 8]> = args.iter().cloned().rev().collect();
                         CONSTRUCT_STACK_AND_CALL_WASM(
                             args_reverse.as_ptr(),
@@ -528,6 +526,7 @@ impl RunnableModule for X64ExecutionContext {
                             panic!("unable to allocate stack");
                         }
                         // TODO: Mark specific regions in the stack as PROT_NONE.
+                        println!("WASMER\t\tinvoke SWITCH_STACK");
                         let ret = SWITCH_STACK(
                             (stack_ptr as *mut u8).offset(STACK_SIZE as isize) as *mut u64,
                             call_fn,
@@ -540,12 +539,14 @@ impl RunnableModule for X64ExecutionContext {
                 rm.get_breakpoints(),
             ) {
                 Ok(x) => {
+                    println!("WASMER\t\tinvoke ok");
                     if !rets.is_null() {
                         *rets = x;
                     }
                     true
                 }
                 Err(err) => {
+                    println!("WASMER\t\tinvoke err: {:?}", err);
                     *error_out = Some(err);
                     false
                 }
@@ -864,7 +865,8 @@ impl ModuleCodeGenerator<X64FunctionCode, X64ExecutionContext, CodegenError>
                 buffer: Arc::from(archived_cache_image.as_slice()),
             }
         } else {
-            let serialized_cache_image = bincode::serialize(&cache_image).unwrap().into_boxed_slice();
+            let serialized_cache_image =
+                bincode::serialize(&cache_image).unwrap().into_boxed_slice();
             SinglepassCache {
                 buffer: Arc::from(serialized_cache_image),
             }
@@ -960,9 +962,13 @@ impl ModuleCodeGenerator<X64FunctionCode, X64ExecutionContext, CodegenError>
 
         let cache_image: CacheImage = if USE_RKYV_SERIALIZATION {
             let memory_contents = memory.as_slice_contents();
-            let archived_cache_image: &Archived<CacheImage>
-                = rkyv::archived_root::<CacheImage>(memory_contents);
-            RkyvDeserialize::<CacheImage, _>::deserialize(archived_cache_image, &mut rkyv::Infallible).unwrap()
+            let archived_cache_image: &Archived<CacheImage> =
+                rkyv::archived_root::<CacheImage>(memory_contents);
+            RkyvDeserialize::<CacheImage, _>::deserialize(
+                archived_cache_image,
+                &mut rkyv::Infallible,
+            )
+            .unwrap()
         } else {
             bincode::deserialize(memory.as_slice())
                 .map_err(|x| CacheError::DeserializeError(format!("{:?}", x)))?
@@ -1059,9 +1065,11 @@ impl X64FunctionCode {
                 Self::mark_trappable(a, m, fsm, control_stack);
 
                 match exception_table {
-                    Some(etable) => { etable
-                                        .offset_to_code
-                                        .insert(a.get_offset().0, ExceptionCode::IllegalArithmetic); }
+                    Some(etable) => {
+                        etable
+                            .offset_to_code
+                            .insert(a.get_offset().0, ExceptionCode::IllegalArithmetic);
+                    }
                     None => {}
                 };
 
@@ -1071,9 +1079,11 @@ impl X64FunctionCode {
                 Self::mark_trappable(a, m, fsm, control_stack);
 
                 match exception_table {
-                    Some(etable) => { etable
-                                        .offset_to_code
-                                        .insert(a.get_offset().0, ExceptionCode::IllegalArithmetic); }
+                    Some(etable) => {
+                        etable
+                            .offset_to_code
+                            .insert(a.get_offset().0, ExceptionCode::IllegalArithmetic);
+                    }
                     None => {}
                 };
 
@@ -2055,9 +2065,10 @@ impl X64FunctionCode {
                         |a| a.emit_conditional_trap(Condition::Above),
                     );
                 }
-                None => { a.emit_conditional_trap(Condition::Above); }
+                None => {
+                    a.emit_conditional_trap(Condition::Above);
+                }
             };
-
 
             m.release_temp_gpr(tmp_bound);
         }
@@ -2106,20 +2117,26 @@ impl X64FunctionCode {
                         |a| a.emit_conditional_trap(Condition::NotEqual),
                     );
                 }
-                None => { a.emit_conditional_trap(Condition::NotEqual); }
+                None => {
+                    a.emit_conditional_trap(Condition::NotEqual);
+                }
             };
-
 
             m.release_temp_gpr(tmp_aligncheck);
         }
 
         match exception_table {
             Some(etable) => {
-                Self::mark_range_with_exception_code(a, etable, ExceptionCode::MemoryOutOfBounds, |a| {
-                    cb(a, m, tmp_addr)
-                })?;
+                Self::mark_range_with_exception_code(
+                    a,
+                    etable,
+                    ExceptionCode::MemoryOutOfBounds,
+                    |a| cb(a, m, tmp_addr),
+                )?;
             }
-            None => { cb(a, m, tmp_addr)?; }
+            None => {
+                cb(a, m, tmp_addr)?;
+            }
         };
 
         m.release_temp_gpr(tmp_addr);
@@ -2253,9 +2270,11 @@ impl X64FunctionCode {
         a.emit_label(trap);
 
         match exception_table {
-            Some(etable) => { etable
-                                .offset_to_code
-                                .insert(a.get_offset().0, ExceptionCode::IllegalArithmetic); }
+            Some(etable) => {
+                etable
+                    .offset_to_code
+                    .insert(a.get_offset().0, ExceptionCode::IllegalArithmetic);
+            }
             None => {}
         };
 
@@ -2386,9 +2405,11 @@ impl X64FunctionCode {
         a.emit_label(trap);
 
         match exception_table {
-            Some(etable) => { etable
-                                .offset_to_code
-                                .insert(a.get_offset().0, ExceptionCode::IllegalArithmetic); }
+            Some(etable) => {
+                etable
+                    .offset_to_code
+                    .insert(a.get_offset().0, ExceptionCode::IllegalArithmetic);
+            }
             None => {}
         };
 
@@ -2525,7 +2546,9 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                         |a| a.emit_conditional_trap(Condition::Below),
                     );
                 }
-                None => { a.emit_conditional_trap(Condition::Below); }
+                None => {
+                    a.emit_conditional_trap(Condition::Below);
+                }
             };
         }
 
@@ -6405,7 +6428,9 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                             |a| a.emit_conditional_trap(Condition::BelowEqual),
                         );
                     }
-                    None => { a.emit_conditional_trap(Condition::BelowEqual); }
+                    None => {
+                        a.emit_conditional_trap(Condition::BelowEqual);
+                    }
                 };
 
                 a.emit_mov(Size::S32, func_index, Location::GPR(table_count));
@@ -6442,7 +6467,9 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                             |a| a.emit_conditional_trap(Condition::NotEqual),
                         );
                     }
-                    None => { a.emit_conditional_trap(Condition::NotEqual); }
+                    None => {
+                        a.emit_conditional_trap(Condition::NotEqual);
+                    }
                 }
 
                 self.machine.release_temp_gpr(sigidx);
@@ -7532,7 +7559,9 @@ impl FunctionCodeGenerator<CodegenError> for X64FunctionCode {
                 Self::mark_trappable(a, &self.machine, &mut self.fsm, &mut self.control_stack);
                 match &mut self.exception_table {
                     Some(etable) => {
-                        etable.offset_to_code.insert(a.get_offset().0, ExceptionCode::Unreachable);
+                        etable
+                            .offset_to_code
+                            .insert(a.get_offset().0, ExceptionCode::Unreachable);
                     }
                     None => {}
                 };
