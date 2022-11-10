@@ -274,6 +274,7 @@ extern "C" fn signal_trap_handler(
     siginfo: *mut siginfo_t,
     ucontext: *mut c_void,
 ) {
+    println!("WASMER\t\t signal_trap_handler");
     use crate::backend::{Architecture, InlineBreakpointType};
 
     #[cfg(target_arch = "x86_64")]
@@ -343,8 +344,10 @@ extern "C" fn signal_trap_handler(
 
             WAS_SIGINT_TRIGGERED.with(|x| x.set(false));
 
+            println!("WASMER\t\t kernel signal {}", signum);
             match Signal::from_c_int(signum) {
                 Ok(SIGTRAP) => {
+                    println!("WASMER\t\t kernel signal {:?}", Signal::from_c_int(signum));
                     // breakpoint
                     let out: Option<Result<(), Box<dyn Any + Send>>> =
                         with_breakpoint_map(|bkpt_map| {
@@ -366,6 +369,7 @@ extern "C" fn signal_trap_handler(
                     }
                 }
                 Ok(SIGSEGV) | Ok(SIGBUS) => {
+                    println!("WASMER\t\t kernel signal {:?}", Signal::from_c_int(signum));
                     if fault.faulting_addr as usize == get_wasm_interrupt_signal_mem() as usize {
                         is_suspend_signal = true;
                         clear_wasm_interrupt();
@@ -373,6 +377,9 @@ extern "C" fn signal_trap_handler(
                             WAS_SIGINT_TRIGGERED.with(|x| x.set(true));
                         }
                     }
+                }
+                Ok(signal) => {
+                    println!("WASMER\t\t kernel signal {}", signal);
                 }
                 _ => {}
             }
