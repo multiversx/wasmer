@@ -143,7 +143,6 @@ pub unsafe extern "C" fn wasmer_instance_from_cache(
     };
     metering::set_points_limit(&mut new_instance, options.gas_limit);
     *instance = Box::into_raw(Box::new(new_instance)) as *mut wasmer_instance_t;
-    println!("[RUST] wasmer_instance_from_cache");
     wasmer_result_t::WASMER_OK
 }
 
