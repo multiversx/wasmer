@@ -1,21 +1,20 @@
 use crate::{
     error::{update_last_error, CApiError},
-    instance::{wasmer_instance_t, wasmer_compilation_options_t, CompilationOptions, prepare_middleware_chain_generator, get_compiler},
+    instance::{
+        get_compiler, prepare_middleware_chain_generator, wasmer_compilation_options_t,
+        wasmer_instance_t, CompilationOptions,
+    },
     wasmer_result_t,
 };
 
-use rkyv::{
-    Deserialize as RkyvDeserialize,
-    ser::Serializer,
-    ser::serializers::AllocSerializer,
-};
+use rkyv::{ser::serializers::AllocSerializer, ser::Serializer, Deserialize as RkyvDeserialize};
 
+use crate::import::GLOBAL_IMPORT_OBJECT;
+use std::slice;
 use wasmer_runtime_core::{
     cache::{Artifact, Error as CacheError},
     import::ImportObject,
 };
-use std::slice;
-use crate::import::GLOBAL_IMPORT_OBJECT;
 
 #[cfg(not(feature = "cranelift-backend"))]
 use wasmer_middleware_common::metering;
@@ -44,7 +43,6 @@ pub unsafe fn is_rkyv_enabled() -> bool {
     false
 }
 
-
 #[allow(clippy::cast_ptr_alignment)]
 #[no_mangle]
 pub unsafe extern "C" fn wasmer_instance_cache(
@@ -65,25 +63,29 @@ pub unsafe extern "C" fn wasmer_instance_cache(
     match module.cache() {
         Err(error) => {
             update_last_error(CApiError {
-                msg: format!("wasmer_instance_cache: artifact creation failed: {:?}", error),
+                msg: format!(
+                    "wasmer_instance_cache: artifact creation failed: {:?}",
+                    error
+                ),
             });
             return wasmer_result_t::WASMER_ERROR;
         }
-        Ok(artifact) => {
-            match serialize_artifact(artifact) {
-                Err(error) => {
-                    update_last_error(CApiError {
-                        msg: format!("wasmer_instance_cache: artifact serialization failed: {:?}", error),
-                    });
-                    return wasmer_result_t::WASMER_ERROR;
-                }
-                Ok(bytes) => {
-                    *cache_bytes = bytes.as_ptr();
-                    *cache_len = bytes.len() as u32;
-                    std::mem::forget(bytes);
-                }
+        Ok(artifact) => match serialize_artifact(artifact) {
+            Err(error) => {
+                update_last_error(CApiError {
+                    msg: format!(
+                        "wasmer_instance_cache: artifact serialization failed: {:?}",
+                        error
+                    ),
+                });
+                return wasmer_result_t::WASMER_ERROR;
             }
-        }
+            Ok(bytes) => {
+                *cache_bytes = bytes.as_ptr();
+                *cache_len = bytes.len() as u32;
+                std::mem::forget(bytes);
+            }
+        },
     };
 
     wasmer_result_t::WASMER_OK
@@ -120,12 +122,11 @@ pub unsafe extern "C" fn wasmer_instance_from_cache(
     };
 
     let new_module = match wasmer_runtime_core::load_cache_with(artifact, &compiler) {
-        Ok(deserialized_module) => {
-            deserialized_module
-        }
+        Ok(deserialized_module) => deserialized_module,
         Err(_) => {
             update_last_error(CApiError {
-                msg: "wasmer_instance_from_cache: artifact instantiation into module failed".to_string(),
+                msg: "wasmer_instance_from_cache: artifact instantiation into module failed"
+                    .to_string(),
             });
             return wasmer_result_t::WASMER_ERROR;
         }
@@ -142,6 +143,7 @@ pub unsafe extern "C" fn wasmer_instance_from_cache(
     };
     metering::set_points_limit(&mut new_instance, options.gas_limit);
     *instance = Box::into_raw(Box::new(new_instance)) as *mut wasmer_instance_t;
+    println!("[RUST] wasmer_instance_from_cache");
     wasmer_result_t::WASMER_OK
 }
 
@@ -166,7 +168,9 @@ fn serialize_artifact_with_rkyv(artifact: Artifact) -> Result<Box<[u8]>, CacheEr
     serializer.serialize_value(&artifact).unwrap();
     let serialized = serializer.into_serializer().into_inner().into_boxed_slice();
     if serialized.is_empty() {
-        return Err(CacheError::SerializeError("rkyv serialization failed".to_string()));
+        return Err(CacheError::SerializeError(
+            "rkyv serialization failed".to_string(),
+        ));
     }
 
     Ok(serialized)
@@ -197,7 +201,8 @@ fn deserialize_artifact(bytes: &[u8]) -> Result<Artifact, CacheError> {
 #[cfg(feature = "singlepass-backend")]
 fn deserialize_artifact_with_rkyv(bytes: &[u8]) -> Result<Artifact, CacheError> {
     let archived = unsafe { rkyv::archived_root::<Artifact>(&bytes[..]) };
-    let artifact: Artifact = RkyvDeserialize::<Artifact, _>::deserialize(archived, &mut rkyv::Infallible).unwrap();
+    let artifact: Artifact =
+        RkyvDeserialize::<Artifact, _>::deserialize(archived, &mut rkyv::Infallible).unwrap();
     Ok(artifact)
 }
 

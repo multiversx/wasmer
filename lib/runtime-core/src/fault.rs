@@ -115,6 +115,7 @@ lazy_static! {
         if ptr as isize == -1 {
             panic!("cannot allocate code memory");
         }
+        println!("[MMAP] fault.rs: mmap of size {}", INTERRUPT_SIGNAL_MEM_SIZE);
         InterruptSignalMem(ptr as _)
     };
 }

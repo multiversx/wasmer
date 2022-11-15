@@ -179,6 +179,7 @@ impl CodeMemory {
         if ptr as isize == -1 {
             panic!("cannot allocate code memory");
         }
+        println!("[MMAP] loader.rs: mmap of size {}", size);
         CodeMemory {
             ptr: ptr as _,
             size: size,
@@ -218,6 +219,7 @@ impl CodeMemory {
 impl Drop for CodeMemory {
     fn drop(&mut self) {
         unsafe {
+            println!("[MUNMAP] loader.rs: munmap of size {}", self.size);
             munmap(self.ptr as _, self.size);
         }
     }

@@ -273,7 +273,7 @@ pub unsafe extern "C" fn wasmer_instance_reset(
     }
 
     reset_memory_grow_count(instance);
-
+    println!("[RUST] wasmer_instance_reset");
     wasmer_result_t::WASMER_OK
 }
 
