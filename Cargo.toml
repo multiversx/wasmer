@@ -3,7 +3,7 @@ name = "wasmer-workspace"
 version = "2.2.1"
 description = "Wasmer workspace"
 authors = ["Wasmer Engineering Team <engineering@wasmer.io>"]
-repository = "https://github.com/ovstinga/wasmer-forked"
+repository = "https://github.com/wasmerio/wasmer"
 license = "MIT"
 edition = "2018"
 publish = false
@@ -79,7 +79,10 @@ loupe = "0.1"
 # For logging tests using the `RUST_LOG=debug` when testing
 test-log = { version = "0.2", default-features = false, features = ["trace"] }
 tracing = { version = "0.1", default-features = false, features = ["log"] }
-tracing-subscriber = { version = "0.3", default-features = false, features = ["env-filter", "fmt"] }
+tracing-subscriber = { version = "0.3", default-features = false, features = [
+    "env-filter",
+    "fmt",
+] }
 
 [features]
 # Don't add the compiler features in default, please add them on the Makefile
@@ -96,18 +99,9 @@ default = [
     "middlewares",
 ]
 engine = []
-universal = [
-    "wasmer-engine-universal",
-    "engine",
-]
-dylib = [
-    "wasmer-engine-dylib",
-    "engine",
-]
-staticlib = [
-    "wasmer-engine-staticlib",
-    "engine",
-]
+universal = ["wasmer-engine-universal", "engine"]
+dylib = ["wasmer-engine-dylib", "engine"]
+staticlib = ["wasmer-engine-staticlib", "engine"]
 cache = ["wasmer-cache"]
 wast = ["wasmer-wast"]
 wasi = ["wasmer-wasi"]
@@ -120,39 +114,18 @@ compiler = [
     "wasmer-engine-dylib/compiler",
     "wasmer-engine-staticlib/compiler",
 ]
-singlepass = [
-    "wasmer-compiler-singlepass",
-    "compiler",
-]
-cranelift = [
-    "wasmer-compiler-cranelift",
-    "compiler",
-]
-llvm = [
-    "wasmer-compiler-llvm",
-    "compiler",
-]
+singlepass = ["wasmer-compiler-singlepass", "compiler"]
+cranelift = ["wasmer-compiler-cranelift", "compiler"]
+llvm = ["wasmer-compiler-llvm", "compiler"]
 middlewares = ["wasmer-middlewares"]
 
 # Testing features
-test-singlepass = [
-    "singlepass",
-]
-test-cranelift = [
-    "cranelift",
-]
-test-llvm = [
-    "llvm",
-]
+test-singlepass = ["singlepass"]
+test-cranelift = ["cranelift"]
+test-llvm = ["llvm"]
 
-test-dylib = [
-    "dylib",
-    "test-generator/test-dylib",
-]
-test-universal = [
-    "universal",
-    "test-generator/test-universal",
-]
+test-dylib = ["dylib", "test-generator/test-dylib"]
+test-universal = ["universal", "test-generator/test-universal"]
 
 # Specifies that we're running in coverage testing mode. This disables tests
 # that raise signals because that interferes with tarpaulin.
