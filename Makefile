@@ -140,8 +140,13 @@ test-capi-singlepass: capi-singlepass
 capi-dev:
 	cargo build -p wasmer-runtime-c-api --profile dev
 
+capi-linux-amd64-dev: capi-dev
+	mv target/debug/libwasmer_runtime_c_api.so target/debug/libwasmer_linux_amd64.so
+	patchelf --set-soname libwasmer_linux_amd64.so target/debug/libwasmer_linux_amd64.so
+
 test-capi: capi
 	cargo test -p wasmer-runtime-c-api --release
+
 test-capi-cranelift: capi-cranelift
 	cargo test --manifest-path lib/runtime-c-api/Cargo.toml --release \
 		--no-default-features --features cranelift-backend,wasi
