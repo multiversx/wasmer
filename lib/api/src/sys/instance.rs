@@ -20,7 +20,7 @@ use wasmer_vm::{InstanceHandle, VMContext};
 /// Spec: <https://webassembly.github.io/spec/core/exec/runtime.html#module-instances>
 #[derive(Clone, MemoryUsage)]
 pub struct Instance {
-    handle: Arc<Mutex<InstanceHandle>>,
+    pub handle: Arc<Mutex<InstanceHandle>>,
     module: Module,
     /// The exports for an instance.
     pub exports: Exports,
