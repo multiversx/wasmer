@@ -1008,6 +1008,11 @@ impl InstanceHandle {
         &self.instance
     }
 
+    /// TODO: add documentation
+    pub fn reset(&self) {
+        initialize_globals(self.instance.as_ref())
+    }
+
     /// Finishes the instantiation process started by `Instance::new`.
     ///
     /// # Safety

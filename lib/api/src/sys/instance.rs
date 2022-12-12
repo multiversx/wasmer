@@ -164,6 +164,10 @@ impl Instance {
         &self.module
     }
 
+    pub fn reset(&self) {
+        self.handle.lock().unwrap().reset()
+    }
+
     /// Returns the [`Store`] where the `Instance` belongs.
     pub fn store(&self) -> &Store {
         self.module.store()
