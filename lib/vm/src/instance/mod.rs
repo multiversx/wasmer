@@ -45,7 +45,7 @@ use wasmer_types::entity::{packed_option::ReservedValue, BoxedSlice, EntityRef, 
 use wasmer_types::{
     DataIndex, DataInitializer, ElemIndex, ExportIndex, FunctionIndex, GlobalIndex, GlobalInit,
     LocalFunctionIndex, LocalGlobalIndex, LocalMemoryIndex, LocalTableIndex, MemoryIndex,
-    ModuleInfo, Pages, SignatureIndex, TableIndex, TableInitializer,
+    ModuleInfo, OwnedDataInitializer, Pages, SignatureIndex, TableIndex, TableInitializer,
 };
 
 /// The function pointer to call with data and an [`Instance`] pointer to
@@ -1009,8 +1009,34 @@ impl InstanceHandle {
     }
 
     /// TODO: add documentation
-    pub fn reset(&self) {
-        initialize_globals(self.instance.as_ref())
+    pub fn reset(&self, data_initializers: &[OwnedDataInitializer]) {
+        let instance = self.instance.as_ref();
+        Self::reset_memories(instance, data_initializers);
+        Self::reset_globals(instance);
+    }
+
+    fn reset_memories(instance: &Instance, data_initializers: &[OwnedDataInitializer]) {
+        Self::zero_memories(instance);
+        Self::shrink_memories(instance);
+        Self::reinitialize_memories(instance, data_initializers)
+    }
+
+    fn zero_memories(instance: &Instance) {}
+    fn shrink_memories(instance: &Instance) {}
+
+    fn reinitialize_memories(instance: &Instance, data_initializers: &[OwnedDataInitializer]) {
+        let data_initializers = data_initializers
+            .iter()
+            .map(|init| DataInitializer {
+                location: init.location.clone(),
+                data: &*init.data,
+            })
+            .collect::<Vec<_>>();
+        initialize_memories(instance, &data_initializers);
+    }
+
+    fn reset_globals(instance: &Instance) {
+        initialize_globals(instance);
     }
 
     /// Finishes the instantiation process started by `Instance::new`.

@@ -164,13 +164,16 @@ impl Instance {
         &self.module
     }
 
-    pub fn reset(&self) {
-        self.handle.lock().unwrap().reset()
-    }
-
     /// Returns the [`Store`] where the `Instance` belongs.
     pub fn store(&self) -> &Store {
         self.module.store()
+    }
+
+    #[doc(hidden)]
+    pub fn reset(&self) {
+        let instance_handle = self.handle.lock().unwrap();
+        let data_initializers = self.module().artifact().data_initializers();
+        instance_handle.reset(data_initializers);
     }
 
     #[doc(hidden)]
