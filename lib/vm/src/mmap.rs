@@ -263,6 +263,7 @@ impl Drop for Mmap {
     #[cfg(not(target_os = "windows"))]
     fn drop(&mut self) {
         if self.len != 0 {
+            println!("DROPPPPPPPPPPING MEMORY");
             let r = unsafe { libc::munmap(self.ptr as *mut libc::c_void, self.len) };
             assert_eq!(r, 0, "munmap failed: {}", io::Error::last_os_error());
         }

@@ -1008,7 +1008,6 @@ impl InstanceHandle {
         &self.instance
     }
 
-    #[allow(unused_variables)]
     /// Resets the `Memories` and `Globals`for an `Instance`.
     pub fn reset(&self, data_initializers: &[OwnedDataInitializer]) {
         let instance = self.instance.as_ref();
@@ -1016,14 +1015,14 @@ impl InstanceHandle {
         Self::reset_globals(instance);
     }
 
-    #[allow(unused_variables, dead_code)]
+    // OVIDIU
     fn reset_memories(instance: &Instance, data_initializers: &[OwnedDataInitializer]) {
+        Self::shrink_memories(instance);
         Self::zero_memories(instance);
-        // Self::shrink_memories(instance);
         Self::reinitialize_memories(instance, data_initializers)
     }
 
-    // OVIDIU: handle result, small refactor
+    // OVIDIU
     #[allow(unused_variables)]
     fn zero_memories(instance: &Instance) {
         for (_index, memory) in instance.memories.iter() {
@@ -1035,11 +1034,16 @@ impl InstanceHandle {
         }
     }
 
-    #[allow(unused_variables, dead_code)]
-    fn shrink_memories(instance: &Instance) {}
+    // OVIDIU
+    #[allow(unused_variables)]
+    fn shrink_memories(instance: &Instance) {
+        for (_index, memory) in instance.memories.iter() {
+            let result = memory.shrink_to_minimum();
+        }
+    }
 
-    // OVIDIU: handle result, small refactor
-    #[allow(unused_variables, dead_code)]
+    // OVIDIU
+    #[allow(unused_variables)]
     fn reinitialize_memories(instance: &Instance, data_initializers: &[OwnedDataInitializer]) {
         let data_initializers = data_initializers
             .iter()

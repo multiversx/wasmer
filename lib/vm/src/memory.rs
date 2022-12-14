@@ -116,6 +116,9 @@ pub trait Memory: fmt::Debug + Send + Sync + MemoryUsage {
     /// Grow memory by the specified amount of wasm pages.
     fn grow(&self, delta: Pages) -> Result<Pages, MemoryError>;
 
+    /// Shrink memory to the minimum amount of wasm pages.
+    fn shrink_to_minimum(&self) -> Result<Pages, MemoryError>;
+
     /// Return a [`VMMemoryDefinition`] for exposing the memory to compiled wasm code.
     ///
     /// The pointer returned in [`VMMemoryDefinition`] must be valid for the lifetime of this memory.
@@ -127,6 +130,8 @@ pub trait Memory: fmt::Debug + Send + Sync + MemoryUsage {
 pub struct LinearMemory {
     // The underlying allocation.
     mmap: Mutex<WasmMmap>,
+
+    minimum: Pages,
 
     // The optional maximum size in wasm pages of this linear memory.
     maximum: Option<Pages>,
@@ -269,6 +274,7 @@ impl LinearMemory {
         let mem_length = memory.minimum.bytes().0.try_into().unwrap();
         Ok(Self {
             mmap: Mutex::new(mmap),
+            minimum: memory.minimum,
             maximum: memory.maximum,
             offset_guard_size: offset_guard_bytes,
             needs_signal_handlers,
@@ -415,6 +421,47 @@ impl Memory for LinearMemory {
         }
 
         Ok(prev_pages)
+    }
+
+    /// Shrink memory to the minimum amount of wasm pages.
+    ///
+    /// Returns `None` if memory can't be shrinked to the minimum amount
+    /// of wasm pages.
+    fn shrink_to_minimum(&self) -> Result<Pages, MemoryError> {
+        let mut mmap_guard = self.mmap.lock().unwrap();
+        let mmap = mmap_guard.borrow_mut();
+
+        let new_pages = self.minimum;
+        println!(
+            "Shrinking to minimum amount of wasm pages: {:#?}",
+            new_pages
+        );
+
+        let guard_bytes = self.offset_guard_size;
+        let new_bytes = new_pages.bytes().0;
+        let request_bytes =
+            new_bytes
+                .checked_add(guard_bytes)
+                .ok_or_else(|| MemoryError::CouldNotGrow {
+                    current: new_pages,
+                    attempted_delta: Bytes(guard_bytes).try_into().unwrap(),
+                })?;
+
+        let new_mmap =
+            Mmap::accessible_reserved(new_bytes, request_bytes).map_err(MemoryError::Region)?;
+
+        mmap.alloc = new_mmap;
+        mmap.size = new_pages;
+
+        // update memory definition
+        unsafe {
+            let mut md_ptr = self.get_vm_memory_definition();
+            let md = md_ptr.as_mut();
+            md.current_length = new_pages.bytes().0.try_into().unwrap();
+            md.base = mmap.alloc.as_mut_ptr() as _;
+        }
+
+        Ok(new_pages)
     }
 
     /// Return a `VMMemoryDefinition` for exposing the memory to compiled wasm code.
