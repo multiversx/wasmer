@@ -169,7 +169,7 @@ impl Instance {
         self.module.store()
     }
 
-    #[doc(hidden)]
+    /// Resets the `Globals` and `Memories` for an `Instance`.
     pub fn reset(&self) -> Result<(), String> {
         let instance_handle = self.handle.lock().unwrap();
         let data_initializers = self.module().artifact().data_initializers();
