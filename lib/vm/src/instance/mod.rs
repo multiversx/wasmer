@@ -1008,13 +1008,15 @@ impl InstanceHandle {
         &self.instance
     }
 
+    #[allow(unused_variables)]
     /// Resets the `Memories` and `Globals`for an `Instance`.
     pub fn reset(&self, data_initializers: &[OwnedDataInitializer]) {
         let instance = self.instance.as_ref();
-        Self::reset_memories(instance, data_initializers);
+        // Self::reset_memories(instance, data_initializers);
         Self::reset_globals(instance);
     }
 
+    #[allow(dead_code)]
     fn reset_memories(instance: &Instance, data_initializers: &[OwnedDataInitializer]) {
         Self::zero_memories(instance);
         Self::shrink_memories(instance);
