@@ -1012,24 +1012,32 @@ impl InstanceHandle {
     /// Resets the `Memories` and `Globals`for an `Instance`.
     pub fn reset(&self, data_initializers: &[OwnedDataInitializer]) {
         let instance = self.instance.as_ref();
-        // Self::reset_memories(instance, data_initializers);
+        Self::reset_memories(instance, data_initializers);
         Self::reset_globals(instance);
     }
 
-    #[allow(dead_code)]
+    #[allow(unused_variables, dead_code)]
     fn reset_memories(instance: &Instance, data_initializers: &[OwnedDataInitializer]) {
         Self::zero_memories(instance);
-        Self::shrink_memories(instance);
-        Self::reinitialize_memories(instance, data_initializers)
+        // Self::shrink_memories(instance);
+        // Self::reinitialize_memories(instance, data_initializers)
     }
 
     #[allow(unused_variables)]
-    fn zero_memories(instance: &Instance) {}
+    fn zero_memories(instance: &Instance) {
+        for (_index, memory) in instance.memories.iter() {
+            unsafe {
+                let memory = memory.vmmemory().as_ref();
+                let len = memory.current_length as u32;
+                let result = memory.memory_fill(0, 0, len);
+            }
+        }
+    }
 
-    #[allow(unused_variables)]
+    #[allow(unused_variables, dead_code)]
     fn shrink_memories(instance: &Instance) {}
 
-    #[allow(unused_variables)]
+    #[allow(unused_variables, dead_code)]
     fn reinitialize_memories(instance: &Instance, data_initializers: &[OwnedDataInitializer]) {
         let data_initializers = data_initializers
             .iter()
