@@ -1008,7 +1008,7 @@ impl InstanceHandle {
         &self.instance
     }
 
-    /// TODO: add documentation
+    /// Resets the `Memories` and `Globals`for an `Instance`.
     pub fn reset(&self, data_initializers: &[OwnedDataInitializer]) {
         let instance = self.instance.as_ref();
         Self::reset_memories(instance, data_initializers);
@@ -1021,9 +1021,13 @@ impl InstanceHandle {
         Self::reinitialize_memories(instance, data_initializers)
     }
 
+    #[allow(unused_variables)]
     fn zero_memories(instance: &Instance) {}
+
+    #[allow(unused_variables)]
     fn shrink_memories(instance: &Instance) {}
 
+    #[allow(unused_variables)]
     fn reinitialize_memories(instance: &Instance, data_initializers: &[OwnedDataInitializer]) {
         let data_initializers = data_initializers
             .iter()
@@ -1032,7 +1036,7 @@ impl InstanceHandle {
                 data: &*init.data,
             })
             .collect::<Vec<_>>();
-        initialize_memories(instance, &data_initializers);
+        let result = initialize_memories(instance, &data_initializers);
     }
 
     fn reset_globals(instance: &Instance) {
