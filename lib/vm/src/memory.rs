@@ -423,7 +423,6 @@ impl Memory for LinearMemory {
         Ok(prev_pages)
     }
 
-    /// Shrink memory to the minimum amount of wasm pages.
     fn shrink_to_minimum(&self) -> Result<(), MemoryError> {
         let mut mmap_guard = self.mmap.lock().unwrap();
         let mmap = mmap_guard.borrow_mut();

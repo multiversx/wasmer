@@ -26,7 +26,7 @@ use crate::vmcontext::{
     VMMemoryDefinition, VMMemoryImport, VMSharedSignatureIndex, VMTableDefinition, VMTableImport,
     VMTrampoline,
 };
-use crate::{raise_lib_trap, FunctionBodyPtr, VMOffsets};
+use crate::{FunctionBodyPtr, VMOffsets};
 use crate::{VMFunction, VMGlobal, VMMemory, VMTable};
 use loupe::{MemoryUsage, MemoryUsageTracker};
 use memoffset::offset_of;
