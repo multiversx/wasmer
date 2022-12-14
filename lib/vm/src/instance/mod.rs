@@ -1017,8 +1017,8 @@ impl InstanceHandle {
 
     // OVIDIU
     fn reset_memories(instance: &Instance, data_initializers: &[OwnedDataInitializer]) {
-        Self::shrink_memories(instance);
         Self::zero_memories(instance);
+        Self::shrink_memories(instance);
         Self::reinitialize_memories(instance, data_initializers)
     }
 
