@@ -1039,6 +1039,10 @@ impl InstanceHandle {
     fn shrink_memories(instance: &Instance) {
         for (_index, memory) in instance.memories.iter() {
             let result = memory.shrink_to_minimum();
+            match result {
+                Ok(pages) => println!("SHRINK PAGES: {}", pages.0),
+                Err(err) => println!("SHRINK ERROR: {}", err.to_string()),
+            }
         }
     }
 
