@@ -26,7 +26,7 @@ use crate::vmcontext::{
     VMMemoryDefinition, VMMemoryImport, VMSharedSignatureIndex, VMTableDefinition, VMTableImport,
     VMTrampoline,
 };
-use crate::{FunctionBodyPtr, VMOffsets};
+use crate::{raise_lib_trap, FunctionBodyPtr, VMOffsets};
 use crate::{VMFunction, VMGlobal, VMMemory, VMTable};
 use loupe::{MemoryUsage, MemoryUsageTracker};
 use memoffset::offset_of;
@@ -1008,47 +1008,66 @@ impl InstanceHandle {
         &self.instance
     }
 
-    /// Resets the `Memories` and `Globals`for an `Instance`.
-    pub fn reset(&self, data_initializers: &[OwnedDataInitializer]) {
+    /// Resets the `Globals` and `Memories` for an `Instance`.
+    pub fn reset(&self, data_initializers: &[OwnedDataInitializer]) -> Result<(), String> {
         let instance = self.instance.as_ref();
-        Self::reset_memories(instance, data_initializers);
         Self::reset_globals(instance);
+        Self::reset_memories(instance, data_initializers)
     }
 
-    // OVIDIU
-    fn reset_memories(instance: &Instance, data_initializers: &[OwnedDataInitializer]) {
-        Self::zero_memories(instance);
-        Self::shrink_memories(instance);
+    fn reset_globals(instance: &Instance) {
+        initialize_globals(instance);
+    }
+
+    fn reset_memories(
+        instance: &Instance,
+        data_initializers: &[OwnedDataInitializer],
+    ) -> Result<(), String> {
+        Self::shrink_memories(instance)?;
+        Self::zero_memories(instance)?;
         Self::reinitialize_memories(instance, data_initializers)
     }
 
-    // OVIDIU
-    #[allow(unused_variables)]
-    fn zero_memories(instance: &Instance) {
-        for (_index, memory) in instance.memories.iter() {
+    fn shrink_memories(instance: &Instance) -> Result<(), String> {
+        for (_local_memory_index, memory) in instance.memories.iter() {
+            let result = memory.shrink_to_minimum();
+            if let Err(memory_error) = result {
+                match memory_error {
+                    MemoryError::Region(message) => return Err(message),
+                    MemoryError::InvalidMemory { reason } => return Err(reason),
+                    _ => return Err(String::from("unexpected memory error")),
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn zero_memories(instance: &Instance) -> Result<(), String> {
+        for (_local_memory_index, memory) in instance.memories.iter() {
             unsafe {
                 let memory = memory.vmmemory().as_ref();
                 let len = memory.current_length as u32;
                 let result = memory.memory_fill(0, 0, len);
+                if let Err(trap) = result {
+                    match trap {
+                        Trap::Lib {
+                            trap_code,
+                            backtrace: _,
+                        } => return Err(String::from(trap_code.message())),
+                        _ => return Err(String::from("unexpected trap")),
+                    }
+                }
             }
         }
+
+        Ok(())
     }
 
-    // OVIDIU
-    #[allow(unused_variables)]
-    fn shrink_memories(instance: &Instance) {
-        for (_index, memory) in instance.memories.iter() {
-            let result = memory.shrink_to_minimum();
-            match result {
-                Ok(pages) => println!("SHRINK PAGES: {}", pages.0),
-                Err(err) => println!("SHRINK ERROR: {}", err.to_string()),
-            }
-        }
-    }
-
-    // OVIDIU
-    #[allow(unused_variables)]
-    fn reinitialize_memories(instance: &Instance, data_initializers: &[OwnedDataInitializer]) {
+    fn reinitialize_memories(
+        instance: &Instance,
+        data_initializers: &[OwnedDataInitializer],
+    ) -> Result<(), String> {
         let data_initializers = data_initializers
             .iter()
             .map(|init| DataInitializer {
@@ -1057,10 +1076,17 @@ impl InstanceHandle {
             })
             .collect::<Vec<_>>();
         let result = initialize_memories(instance, &data_initializers);
-    }
+        if let Err(trap) = result {
+            match trap {
+                Trap::Lib {
+                    trap_code,
+                    backtrace: _,
+                } => return Err(String::from(trap_code.message())),
+                _ => return Err(String::from("unexpected trap")),
+            }
+        }
 
-    fn reset_globals(instance: &Instance) {
-        initialize_globals(instance);
+        Ok(())
     }
 
     /// Finishes the instantiation process started by `Instance::new`.

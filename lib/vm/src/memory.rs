@@ -117,7 +117,7 @@ pub trait Memory: fmt::Debug + Send + Sync + MemoryUsage {
     fn grow(&self, delta: Pages) -> Result<Pages, MemoryError>;
 
     /// Shrink memory to the minimum amount of wasm pages.
-    fn shrink_to_minimum(&self) -> Result<Pages, MemoryError>;
+    fn shrink_to_minimum(&self) -> Result<(), MemoryError>;
 
     /// Return a [`VMMemoryDefinition`] for exposing the memory to compiled wasm code.
     ///
@@ -424,10 +424,7 @@ impl Memory for LinearMemory {
     }
 
     /// Shrink memory to the minimum amount of wasm pages.
-    ///
-    /// Returns `None` if memory can't be shrinked to the minimum amount
-    /// of wasm pages.
-    fn shrink_to_minimum(&self) -> Result<Pages, MemoryError> {
+    fn shrink_to_minimum(&self) -> Result<(), MemoryError> {
         let mut mmap_guard = self.mmap.lock().unwrap();
         let mmap = mmap_guard.borrow_mut();
 
@@ -435,13 +432,7 @@ impl Memory for LinearMemory {
         let new_bytes = new_pages.bytes().0;
 
         let guard_bytes = self.offset_guard_size;
-        let request_bytes =
-            new_bytes
-                .checked_add(guard_bytes)
-                .ok_or_else(|| MemoryError::CouldNotGrow {
-                    current: new_pages,
-                    attempted_delta: Bytes(guard_bytes).try_into().unwrap(),
-                })?;
+        let request_bytes = new_bytes + guard_bytes;
 
         let new_mmap =
             Mmap::accessible_reserved(new_bytes, request_bytes).map_err(MemoryError::Region)?;
@@ -457,7 +448,7 @@ impl Memory for LinearMemory {
             md.base = mmap.alloc.as_mut_ptr();
         }
 
-        Ok(new_pages)
+        Ok(())
     }
 
     /// Return a `VMMemoryDefinition` for exposing the memory to compiled wasm code.

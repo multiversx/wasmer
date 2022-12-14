@@ -170,10 +170,10 @@ impl Instance {
     }
 
     #[doc(hidden)]
-    pub fn reset(&self) {
+    pub fn reset(&self) -> Result<(), Strinng> {
         let instance_handle = self.handle.lock().unwrap();
         let data_initializers = self.module().artifact().data_initializers();
-        instance_handle.reset(data_initializers);
+        instance_handle.reset(data_initializers)
     }
 
     #[doc(hidden)]
