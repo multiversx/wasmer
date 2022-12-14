@@ -1020,9 +1020,10 @@ impl InstanceHandle {
     fn reset_memories(instance: &Instance, data_initializers: &[OwnedDataInitializer]) {
         Self::zero_memories(instance);
         // Self::shrink_memories(instance);
-        // Self::reinitialize_memories(instance, data_initializers)
+        Self::reinitialize_memories(instance, data_initializers)
     }
 
+    // OVIDIU: handle result, small refactor
     #[allow(unused_variables)]
     fn zero_memories(instance: &Instance) {
         for (_index, memory) in instance.memories.iter() {
@@ -1037,6 +1038,7 @@ impl InstanceHandle {
     #[allow(unused_variables, dead_code)]
     fn shrink_memories(instance: &Instance) {}
 
+    // OVIDIU: handle result, small refactor
     #[allow(unused_variables, dead_code)]
     fn reinitialize_memories(instance: &Instance, data_initializers: &[OwnedDataInitializer]) {
         let data_initializers = data_initializers
