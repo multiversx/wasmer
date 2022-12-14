@@ -432,13 +432,9 @@ impl Memory for LinearMemory {
         let mmap = mmap_guard.borrow_mut();
 
         let new_pages = self.minimum;
-        println!(
-            "Shrinking to minimum amount of wasm pages: {:#?}",
-            new_pages
-        );
+        let new_bytes = new_pages.bytes().0;
 
         let guard_bytes = self.offset_guard_size;
-        let new_bytes = new_pages.bytes().0;
         let request_bytes =
             new_bytes
                 .checked_add(guard_bytes)
@@ -458,7 +454,7 @@ impl Memory for LinearMemory {
             let mut md_ptr = self.get_vm_memory_definition();
             let md = md_ptr.as_mut();
             md.current_length = new_pages.bytes().0.try_into().unwrap();
-            md.base = mmap.alloc.as_mut_ptr() as _;
+            md.base = mmap.alloc.as_mut_ptr();
         }
 
         Ok(new_pages)
