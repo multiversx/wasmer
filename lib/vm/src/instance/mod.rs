@@ -9,6 +9,7 @@
 
 mod allocator;
 mod r#ref;
+mod reset;
 
 pub use allocator::InstanceAllocator;
 pub use r#ref::{InstanceRef, WeakInstanceRef, WeakOrStrongInstanceRef};
@@ -45,7 +46,7 @@ use wasmer_types::entity::{packed_option::ReservedValue, BoxedSlice, EntityRef, 
 use wasmer_types::{
     DataIndex, DataInitializer, ElemIndex, ExportIndex, FunctionIndex, GlobalIndex, GlobalInit,
     LocalFunctionIndex, LocalGlobalIndex, LocalMemoryIndex, LocalTableIndex, MemoryIndex,
-    ModuleInfo, OwnedDataInitializer, Pages, SignatureIndex, TableIndex, TableInitializer,
+    ModuleInfo, Pages, SignatureIndex, TableIndex, TableInitializer,
 };
 
 /// The function pointer to call with data and an [`Instance`] pointer to
@@ -1006,87 +1007,6 @@ impl InstanceHandle {
     /// Return a reference to the contained `Instance`.
     pub(crate) fn instance(&self) -> &InstanceRef {
         &self.instance
-    }
-
-    /// Resets the `Globals` and `Memories` for an `Instance`.
-    pub fn reset(&self, data_initializers: &[OwnedDataInitializer]) -> Result<(), String> {
-        let instance = self.instance.as_ref();
-        Self::reset_globals(instance);
-        Self::reset_memories(instance, data_initializers)
-    }
-
-    fn reset_globals(instance: &Instance) {
-        initialize_globals(instance);
-    }
-
-    fn reset_memories(
-        instance: &Instance,
-        data_initializers: &[OwnedDataInitializer],
-    ) -> Result<(), String> {
-        Self::shrink_memories(instance)?;
-        Self::zero_memories(instance)?;
-        Self::reinitialize_memories(instance, data_initializers)
-    }
-
-    fn shrink_memories(instance: &Instance) -> Result<(), String> {
-        for (_local_memory_index, memory) in instance.memories.iter() {
-            let result = memory.shrink_to_minimum();
-            if let Err(memory_error) = result {
-                match memory_error {
-                    MemoryError::Region(message) => return Err(message),
-                    MemoryError::InvalidMemory { reason } => return Err(reason),
-                    _ => return Err(String::from("unexpected memory error")),
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    fn zero_memories(instance: &Instance) -> Result<(), String> {
-        for (_local_memory_index, memory) in instance.memories.iter() {
-            unsafe {
-                let memory = memory.vmmemory().as_ref();
-                let len = memory.current_length as u32;
-                let result = memory.memory_fill(0, 0, len);
-                if let Err(trap) = result {
-                    match trap {
-                        Trap::Lib {
-                            trap_code,
-                            backtrace: _,
-                        } => return Err(String::from(trap_code.message())),
-                        _ => return Err(String::from("unexpected trap")),
-                    }
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    fn reinitialize_memories(
-        instance: &Instance,
-        data_initializers: &[OwnedDataInitializer],
-    ) -> Result<(), String> {
-        let data_initializers = data_initializers
-            .iter()
-            .map(|init| DataInitializer {
-                location: init.location.clone(),
-                data: &*init.data,
-            })
-            .collect::<Vec<_>>();
-        let result = initialize_memories(instance, &data_initializers);
-        if let Err(trap) = result {
-            match trap {
-                Trap::Lib {
-                    trap_code,
-                    backtrace: _,
-                } => return Err(String::from(trap_code.message())),
-                _ => return Err(String::from("unexpected trap")),
-            }
-        }
-
-        Ok(())
     }
 
     /// Finishes the instantiation process started by `Instance::new`.

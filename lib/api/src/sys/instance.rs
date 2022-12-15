@@ -169,13 +169,6 @@ impl Instance {
         self.module.store()
     }
 
-    /// Resets the `Globals` and `Memories` for an `Instance`.
-    pub fn reset(&self) -> Result<(), String> {
-        let instance_handle = self.handle.lock().unwrap();
-        let data_initializers = self.module().artifact().data_initializers();
-        instance_handle.reset(data_initializers)
-    }
-
     #[doc(hidden)]
     pub fn vmctx_ptr(&self) -> *mut VMContext {
         self.handle.lock().unwrap().vmctx_ptr()
@@ -187,5 +180,13 @@ impl fmt::Debug for Instance {
         f.debug_struct("Instance")
             .field("exports", &self.exports)
             .finish()
+    }
+}
+
+impl Instance {
+    /// Resets the [`Globals`] and [`Memories`] for an [`Instance`].
+    pub fn reset(&self) -> Result<(), String> {
+        let data_initializers = self.module.artifact().data_initializers();
+        self.handle.lock().unwrap().reset(data_initializers)
     }
 }

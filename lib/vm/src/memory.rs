@@ -116,13 +116,13 @@ pub trait Memory: fmt::Debug + Send + Sync + MemoryUsage {
     /// Grow memory by the specified amount of wasm pages.
     fn grow(&self, delta: Pages) -> Result<Pages, MemoryError>;
 
-    /// Shrink memory to the minimum amount of wasm pages.
-    fn shrink_to_minimum(&self) -> Result<(), MemoryError>;
-
     /// Return a [`VMMemoryDefinition`] for exposing the memory to compiled wasm code.
     ///
     /// The pointer returned in [`VMMemoryDefinition`] must be valid for the lifetime of this memory.
     fn vmmemory(&self) -> NonNull<VMMemoryDefinition>;
+
+    /// Shrink memory to the minimum amount of wasm pages.
+    fn shrink_to_minimum(&self) -> Result<(), MemoryError>;
 }
 
 /// A linear memory instance.
@@ -423,6 +423,12 @@ impl Memory for LinearMemory {
         Ok(prev_pages)
     }
 
+    /// Return a `VMMemoryDefinition` for exposing the memory to compiled wasm code.
+    fn vmmemory(&self) -> NonNull<VMMemoryDefinition> {
+        let _mmap_guard = self.mmap.lock().unwrap();
+        unsafe { self.get_vm_memory_definition() }
+    }
+
     fn shrink_to_minimum(&self) -> Result<(), MemoryError> {
         let mut mmap_guard = self.mmap.lock().unwrap();
         let mmap = mmap_guard.borrow_mut();
@@ -448,11 +454,5 @@ impl Memory for LinearMemory {
         }
 
         Ok(())
-    }
-
-    /// Return a `VMMemoryDefinition` for exposing the memory to compiled wasm code.
-    fn vmmemory(&self) -> NonNull<VMMemoryDefinition> {
-        let _mmap_guard = self.mmap.lock().unwrap();
-        unsafe { self.get_vm_memory_definition() }
     }
 }
