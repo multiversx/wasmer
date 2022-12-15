@@ -16,7 +16,7 @@ use thiserror::Error;
 pub const WASM_PAGE_SIZE: usize = 0x10000;
 
 /// The number of pages we can have before we run out of byte index space.
-pub const WASM_MAX_PAGES: u32 = 0x14;
+pub const WASM_MAX_PAGES: u32 = 0x10000;
 
 /// The minimum number of pages allowed.
 pub const WASM_MIN_PAGES: u32 = 0x100;
