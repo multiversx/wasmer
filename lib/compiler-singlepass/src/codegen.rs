@@ -3253,7 +3253,6 @@ impl<'a, M: Machine> FuncGen<'a, M> {
                 self.release_locations_only_stack(&[dst, val, len]);
             }
             Operator::MemoryGrow { mem, mem_byte: _ } => {
-                println!("operator MemoryGrow");
                 let memory_index = MemoryIndex::new(mem as usize);
                 let param_pages = self.value_stack.pop().unwrap();
 

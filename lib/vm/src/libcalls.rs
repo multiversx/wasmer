@@ -177,7 +177,7 @@ pub unsafe extern "C" fn wasmer_vm_imported_memory32_grow(
 ) -> u32 {
     let instance = (&*vmctx).instance();
     let memory_index = MemoryIndex::from_u32(memory_index);
-
+    println!("grow with delta: {}", delta);
     instance
         .imported_memory_grow(memory_index, delta)
         .map(|pages| pages.0)
