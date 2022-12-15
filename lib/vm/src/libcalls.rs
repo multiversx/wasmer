@@ -42,7 +42,7 @@ use crate::probestack::PROBESTACK;
 use crate::table::{RawTableElement, TableElement};
 use crate::trap::{raise_lib_trap, Trap, TrapCode};
 use crate::vmcontext::VMContext;
-use crate::VMExternRef;
+use crate::{MemoryError, VMExternRef};
 use enum_iterator::IntoEnumIterator;
 use loupe::MemoryUsage;
 #[cfg(feature = "enable-rkyv")]
@@ -160,10 +160,34 @@ pub unsafe extern "C" fn wasmer_vm_memory32_grow(
 
     println!("grow with delta: {}", delta);
 
-    instance
-        .memory_grow(memory_index, delta)
-        .map(|pages| pages.0)
-        .unwrap_or(u32::max_value())
+    let result = instance.memory_grow(memory_index, delta);
+    match result {
+        Ok(pages) => {
+            println!("Ok({})", pages.0);
+            return pages.0;
+        }
+        Err(err) => match err {
+            MemoryError::CouldNotGrow {
+                current,
+                attempted_delta,
+            } => {
+                println!(
+                    "current: {}, attempted_delta: {}",
+                    current.0, attempted_delta.0
+                );
+                u32::max_value()
+            }
+            _ => {
+                println!("unexpected mem error");
+                u32::max_value()
+            }
+        },
+    }
+
+    // instance
+    //     .memory_grow(memory_index, delta)
+    //     .map(|pages| pages.0)
+    //     .unwrap_or(u32::max_value())
 }
 
 /// Implementation of memory.grow for imported 32-bit memories.
