@@ -120,6 +120,9 @@ pub trait Memory: fmt::Debug + Send + Sync + MemoryUsage {
     ///
     /// The pointer returned in [`VMMemoryDefinition`] must be valid for the lifetime of this memory.
     fn vmmemory(&self) -> NonNull<VMMemoryDefinition>;
+
+    /// Shrink memory to the minimum amount of wasm pages.
+    fn shrink_to_minimum(&self) -> Result<(), MemoryError>;
 }
 
 /// A linear memory instance.
@@ -127,6 +130,8 @@ pub trait Memory: fmt::Debug + Send + Sync + MemoryUsage {
 pub struct LinearMemory {
     // The underlying allocation.
     mmap: Mutex<WasmMmap>,
+
+    minimum: Pages,
 
     // The optional maximum size in wasm pages of this linear memory.
     maximum: Option<Pages>,
@@ -269,6 +274,7 @@ impl LinearMemory {
         let mem_length = memory.minimum.bytes().0.try_into().unwrap();
         Ok(Self {
             mmap: Mutex::new(mmap),
+            minimum: memory.minimum,
             maximum: memory.maximum,
             offset_guard_size: offset_guard_bytes,
             needs_signal_handlers,
@@ -421,5 +427,32 @@ impl Memory for LinearMemory {
     fn vmmemory(&self) -> NonNull<VMMemoryDefinition> {
         let _mmap_guard = self.mmap.lock().unwrap();
         unsafe { self.get_vm_memory_definition() }
+    }
+
+    fn shrink_to_minimum(&self) -> Result<(), MemoryError> {
+        let mut mmap_guard = self.mmap.lock().unwrap();
+        let mmap = mmap_guard.borrow_mut();
+
+        let new_pages = self.minimum;
+        let new_bytes = new_pages.bytes().0;
+
+        let guard_bytes = self.offset_guard_size;
+        let request_bytes = new_bytes + guard_bytes;
+
+        let new_mmap =
+            Mmap::accessible_reserved(new_bytes, request_bytes).map_err(MemoryError::Region)?;
+
+        mmap.alloc = new_mmap;
+        mmap.size = new_pages;
+
+        // update memory definition
+        unsafe {
+            let mut md_ptr = self.get_vm_memory_definition();
+            let md = md_ptr.as_mut();
+            md.current_length = new_pages.bytes().0.try_into().unwrap();
+            md.base = mmap.alloc.as_mut_ptr();
+        }
+
+        Ok(())
     }
 }

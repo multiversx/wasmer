@@ -9,6 +9,7 @@
 
 mod allocator;
 mod r#ref;
+mod reset;
 
 pub use allocator::InstanceAllocator;
 pub use r#ref::{InstanceRef, WeakInstanceRef, WeakOrStrongInstanceRef};

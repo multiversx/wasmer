@@ -182,3 +182,11 @@ impl fmt::Debug for Instance {
             .finish()
     }
 }
+
+impl Instance {
+    /// Resets the [`Globals`] and [`Memories`] for an [`Instance`].
+    pub fn reset(&self) -> Result<(), String> {
+        let data_initializers = self.module.artifact().data_initializers();
+        self.handle.lock().unwrap().reset(data_initializers)
+    }
+}
