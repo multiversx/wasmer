@@ -155,6 +155,7 @@ impl Compiler for SinglepassCompiler {
                         while generator.has_control_frames() {
                             generator.set_srcloc(reader.original_position() as u32);
                             let op = reader.read_operator()?;
+                            // println!("compiler op: {:#?}", &op);
                             generator.feed_operator(op).map_err(to_compile_error)?;
                         }
 

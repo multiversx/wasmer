@@ -151,7 +151,7 @@ impl<'a> FunctionBinaryReader<'a> for MiddlewareBinaryReader<'a> {
         while self.state.pending_operations.is_empty() {
             let raw_op = self.state.inner.read_operator()?;
 
-            println!("raw op: {:#?}", raw_op);
+            // println!("raw op: {:#?}", raw_op);
 
             // Fill the initial raw operator into pending buffer.
             self.state.pending_operations.push_back(raw_op);

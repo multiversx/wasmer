@@ -1119,7 +1119,7 @@ impl<'a, M: Machine> FuncGen<'a, M> {
 
         self.state.wasm_inst_offset = self.state.wasm_inst_offset.wrapping_add(1);
 
-        //println!("{:?} {}", op, self.value_stack.len());
+        // println!("codegen op: {:#?}", &op);
         let was_unreachable;
 
         if self.unreachable_depth > 0 {
