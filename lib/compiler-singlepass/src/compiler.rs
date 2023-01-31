@@ -132,9 +132,12 @@ impl Compiler for SinglepassCompiler {
                 let num_locals = reader.read_local_count()?;
                 for _ in 0..num_locals {
                     let (count, ty) = reader.read_local_decl()?;
+                    let mut i = 0;
                     for _ in 0..count {
                         locals.push(ty);
+                        i += 1;
                     }
+                    println!("i: {}", i);
                 }
 
                 match target.triple().architecture {
