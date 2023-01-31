@@ -39,6 +39,9 @@ pub trait FunctionMiddleware: Debug {
         state.push_operator(operator);
         Ok(())
     }
+
+    /// Processes the given local count.
+    fn feed_local_count(&mut self, local_count: u32);
 }
 
 /// A Middleware binary reader of the WebAssembly structures and types.
@@ -132,7 +135,13 @@ impl<'a> MiddlewareBinaryReader<'a> {
 
 impl<'a> FunctionBinaryReader<'a> for MiddlewareBinaryReader<'a> {
     fn read_local_count(&mut self) -> WasmResult<u32> {
-        Ok(self.state.inner.read_var_u32()?)
+        let local_count = self.state.inner.read_var_u32()?;
+
+        for stage in &mut self.chain {
+            stage.feed_local_count(local_count)
+        }
+
+        Ok(local_count)
     }
 
     fn read_local_decl(&mut self) -> WasmResult<(u32, Type)> {
