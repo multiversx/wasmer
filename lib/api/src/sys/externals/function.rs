@@ -388,6 +388,7 @@ impl Function {
         params: &[Val],
         results: &mut [Val],
     ) -> Result<(), RuntimeError> {
+        println!("call_wasm");
         let format_types_for_error_message = |items: &[Val]| {
             items
                 .iter()
