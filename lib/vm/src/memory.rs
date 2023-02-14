@@ -430,6 +430,10 @@ impl Memory for LinearMemory {
     }
 
     fn shrink_to_minimum(&self) -> Result<(), MemoryError> {
+        if self.size() == self.minimum {
+            return Ok(());
+        }
+
         let mut mmap_guard = self.mmap.lock().unwrap();
         let mmap = mmap_guard.borrow_mut();
 
