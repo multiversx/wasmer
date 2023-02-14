@@ -4,6 +4,7 @@ use std::any::Any;
 use std::fmt;
 use std::sync::{Arc, RwLock};
 #[cfg(all(feature = "compiler", feature = "engine"))]
+use wasmer_compiler::CompilerConfig;
 use wasmer_engine::{is_wasm_pc, Engine, Tunables};
 use wasmer_vm::{init_traps, TrapHandler, TrapHandlerFn};
 

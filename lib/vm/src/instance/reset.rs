@@ -46,6 +46,7 @@ fn zero_memories(instance: &Instance) -> Result<(), String> {
             }
         }
     }
+
     Ok(())
 }
 
@@ -60,6 +61,7 @@ fn shrink_memories(instance: &Instance) -> Result<(), String> {
             }
         }
     }
+
     Ok(())
 }
 
@@ -84,5 +86,6 @@ fn reinitialize_memories(
             _ => return Err(String::from("unexpected trap")),
         }
     }
+    
     Ok(())
 }
