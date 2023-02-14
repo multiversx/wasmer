@@ -86,6 +86,6 @@ fn reinitialize_memories(
             _ => return Err(String::from("unexpected trap")),
         }
     }
-    
+
     Ok(())
 }
