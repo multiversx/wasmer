@@ -396,6 +396,12 @@ pub fn init_traps(is_wasm_pc: fn(usize) -> bool) {
     });
 }
 
+/// This function calls platform_init() without wrapping it in Once.
+#[allow(dead_code)]
+pub fn force_init_traps() {
+    unsafe { platform_init() }
+}
+
 /// Raises a user-defined trap immediately.
 ///
 /// This function performs as-if a wasm trap was just executed, only the trap
