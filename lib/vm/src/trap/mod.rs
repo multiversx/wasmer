@@ -11,4 +11,4 @@ pub use traphandlers::{
     catch_traps, catch_traps_with_result, raise_lib_trap, raise_user_trap, wasmer_call_trampoline,
     TlsRestore, Trap, TrapHandler, TrapHandlerFn,
 };
-pub use traphandlers::{force_init_traps, init_traps, resume_panic};
+pub use traphandlers::{init_traps, platform_init, resume_panic};

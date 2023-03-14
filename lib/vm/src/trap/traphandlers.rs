@@ -42,7 +42,8 @@ cfg_if::cfg_if! {
         static mut PREV_SIGILL: MaybeUninit<libc::sigaction> = MaybeUninit::uninit();
         static mut PREV_SIGFPE: MaybeUninit<libc::sigaction> = MaybeUninit::uninit();
 
-        unsafe fn platform_init() {
+        /// Attach handlers to OS signals
+        pub unsafe fn platform_init() {
             let register = |slot: &mut MaybeUninit<libc::sigaction>, signal: i32| {
                 let mut handler: libc::sigaction = mem::zeroed();
                 // The flags here are relatively careful, and they are...
@@ -394,12 +395,6 @@ pub fn init_traps(is_wasm_pc: fn(usize) -> bool) {
         IS_WASM_PC = is_wasm_pc;
         platform_init();
     });
-}
-
-/// This function calls platform_init() without wrapping it in Once.
-#[allow(dead_code)]
-pub fn force_init_traps() {
-    unsafe { platform_init() }
 }
 
 /// Raises a user-defined trap immediately.
