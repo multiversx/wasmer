@@ -45,6 +45,17 @@ cfg_if::cfg_if! {
         /// Attach handlers to OS signals
         pub unsafe fn platform_init() {
             let register = |slot: &mut MaybeUninit<libc::sigaction>, signal: i32| {
+                let mut prev_handler: libc::sigaction = mem::zeroed();
+                if libc::sigaction(signal, ptr::null_mut(), &mut prev_handler) != 0 {
+                    panic!(
+                        "unable to read signal handler: {}",
+                        io::Error::last_os_error(),
+                    );
+                }
+                if prev_handler.sa_sigaction == trap_handler as usize {
+                    return
+                }
+
                 let mut handler: libc::sigaction = mem::zeroed();
                 // The flags here are relatively careful, and they are...
                 //
