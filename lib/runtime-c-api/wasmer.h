@@ -645,6 +645,8 @@ wasmer_export_t *wasmer_exports_get(wasmer_exports_t *exports, int idx);
  */
 int wasmer_exports_len(wasmer_exports_t *exports);
 
+void wasmer_force_install_sighandlers(void);
+
 /**
  * Frees memory for the given Global
  */

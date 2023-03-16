@@ -476,7 +476,8 @@ unsafe fn install_sighandler() {
     sigaction(SIGINT, &sa_interrupt).unwrap();
 }
 
-unsafe fn install_sighandler_as_dylib() {
+/// Install signal handlers, normally called once per process.
+pub unsafe fn install_sighandler_as_dylib() {
     let sa_trap = SigAction::new(
         SigHandler::SigAction(signal_trap_handler),
         SaFlags::SA_ONSTACK,
