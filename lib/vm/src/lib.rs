@@ -33,7 +33,7 @@ mod sig_registry;
 mod table;
 mod trap;
 mod vmcontext;
-mod vmoffsets;
+pub mod vmoffsets;
 
 pub mod libcalls;
 

@@ -25,3 +25,4 @@ mod x64_decl;
 pub use crate::compiler::SinglepassCompiler;
 pub use crate::config::Singlepass;
 pub use crate::emitter_arm64::gen_std_trampoline_arm64;
+pub use crate::emitter_arm64::gen_std_dynamic_import_trampoline_arm64;

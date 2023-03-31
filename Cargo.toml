@@ -94,6 +94,7 @@ default = [
     "wasi",
     "emscripten",
     "middlewares",
+    "singlepass",
 ]
 engine = []
 universal = [

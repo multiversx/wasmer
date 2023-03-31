@@ -2524,6 +2524,7 @@ pub fn gen_std_trampoline_arm64(
         unwind_info: None,
     }
 }
+
 // Generates dynamic import function call trampoline for a function type.
 pub fn gen_std_dynamic_import_trampoline_arm64(
     vmoffsets: &VMOffsets,

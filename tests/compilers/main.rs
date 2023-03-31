@@ -27,11 +27,43 @@ pub use wasmer_wast::WasiFileSystemKind;
 #[cfg(test)]
 mod tests {
     use wasmer_compiler::CallingConvention;
-    use wasmer_compiler_singlepass::gen_std_trampoline_arm64;
+    use wasmer_compiler_singlepass::*;
     use wasmer_types::{FunctionIndex, FunctionType, Type};
+    use wasmer::vm::vmoffsets::VMOffsets;
+    use wasmer::vm::VMOffsets;
 
     #[test]
-    fn just_run_this() {
+    fn test_std_trampoline() {
+        let signature = make_test_signature();
+
+        let trampoline_arm_basic =
+            gen_std_trampoline_arm64(&signature, CallingConvention::WasmBasicCAbi);
+        println!("\nbasic trampoline body: {:?}", trampoline_arm_basic.body);
+
+        let trampoline_arm_apple =
+            gen_std_trampoline_arm64(&signature, CallingConvention::AppleAarch64);
+        println!("\napple trampoline body: {:?}", trampoline_arm_apple.body);
+
+        assert_ne!(trampoline_arm_basic, trampoline_arm_apple);
+    }
+
+    #[test]
+    fn test_dynamic_import_trampoline() {
+        let signature = make_test_signature();
+        let vmoffsets = VMOffsets::new_for_trampolines(4);
+
+        let trampoline_arm_basic =
+            gen_std_dynamic_import_trampoline_arm64(&vmoffsets, &signature, CallingConvention::WasmBasicCAbi);
+        println!("\nbasic trampoline body: {:?}", trampoline_arm_basic.body);
+
+        let trampoline_arm_apple =
+            gen_std_dynamic_import_trampoline_arm64(&vmoffsets, &signature, CallingConvention::AppleAarch64);
+        println!("\napple trampoline body: {:?}", trampoline_arm_apple.body);
+
+        assert_ne!(trampoline_arm_basic, trampoline_arm_apple);
+    }
+
+    fn make_test_signature() -> FunctionType {
         let params = vec![
             Type::I64,
             Type::I64,
@@ -47,17 +79,6 @@ mod tests {
         ];
         let returns = vec![Type::I32];
 
-        let signature = FunctionType::new(params, returns);
-        println!("signature: {:?}", signature);
-
-        let trampoline_arm_basic =
-            gen_std_trampoline_arm64(&signature, CallingConvention::WasmBasicCAbi);
-        println!("trampoline body: {:?}", trampoline_arm_basic.body);
-
-        let trampoline_arm_apple =
-            gen_std_trampoline_arm64(&signature, CallingConvention::AppleAarch64);
-        println!("trampoline body: {:?}", trampoline_arm_apple.body);
-
-        assert_ne!(trampoline_arm_basic, trampoline_arm_apple);
+        FunctionType::new(params, returns)
     }
 }
