@@ -2406,6 +2406,7 @@ pub fn gen_std_trampoline_arm64(
     sig: &FunctionType,
     calling_convention: CallingConvention,
 ) -> FunctionBody {
+    println!(">>> entering gen_std_trampoline_arm64()");
     let mut a = Assembler::new(0);
 
     let fptr = GPR::X27;
@@ -2531,6 +2532,7 @@ pub fn gen_std_dynamic_import_trampoline_arm64(
     sig: &FunctionType,
     calling_convention: CallingConvention,
 ) -> FunctionBody {
+    println!(">>> entering gen_std_dynamic_import_trampoline_arm64()");
     let mut a = Assembler::new(0);
     // Allocate argument array.
     let stack_offset: usize = 16 * std::cmp::max(sig.params().len(), sig.results().len());
@@ -2684,6 +2686,8 @@ pub fn gen_import_call_trampoline_arm64(
     sig: &FunctionType,
     calling_convention: CallingConvention,
 ) -> CustomSection {
+    println!(">>> entering gen_import_call_trampoline_arm64()");
+
     let mut a = Assembler::new(0);
 
     // Singlepass internally treats all arguments as integers
