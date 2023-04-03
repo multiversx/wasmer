@@ -2573,6 +2573,7 @@ pub fn gen_std_dynamic_import_trampoline_arm64(
 
         for (i, ty) in sig.params().iter().enumerate() {
             println!(">>>\tcompiling argument {}, type {:?}", i, ty);
+            println!(">>>\tcurrent stack_param_count {}", stack_param_count);
             let source_loc = match argalloc.next(*ty, calling_convention) {
                 Some(ARM64Register::GPR(gpr)) => Location::GPR(gpr),
                 Some(ARM64Register::NEON(neon)) => Location::SIMD(neon),
@@ -2583,6 +2584,10 @@ pub fn gen_std_dynamic_import_trampoline_arm64(
                             _ => {
                                 if stack_param_count & 7 != 0 {
                                     stack_param_count = (stack_param_count + 7) & !7;
+                                    println!(
+                                        ">>>\tAppleAarch64: stack_param_count updated to {}",
+                                        stack_param_count
+                                    );
                                 };
                                 Size::S64
                             }
@@ -2594,11 +2599,16 @@ pub fn gen_std_dynamic_import_trampoline_arm64(
                         Location::GPR(GPR::X26),
                         Location::Memory(GPR::XzrSp, (stack_offset + 16 + stack_param_count) as _),
                     );
+                    println!(
+                        ">>> emitting LDR from {} + 16 + {}",
+                        stack_offset, stack_param_count
+                    );
                     stack_param_count += match sz {
                         Size::S32 => 4,
                         Size::S64 => 8,
                         _ => unreachable!(),
                     };
+                    println!(">>>\tstack_param_count updated to {}", stack_param_count);
                     Location::GPR(GPR::X26)
                 }
             };
