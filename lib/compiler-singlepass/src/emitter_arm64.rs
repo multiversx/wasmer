@@ -2602,7 +2602,7 @@ pub fn gen_std_dynamic_import_trampoline_arm64(
                         Location::Memory(GPR::XzrSp, (stack_offset + 16 + stack_param_count) as _),
                     );
                     println!(
-                        ">>> emitting LDR from {} + 16 + {}",
+                        ">>>\temitting LDR from {} + 16 + {}",
                         stack_offset, stack_param_count
                     );
                     stack_param_count += match sz {
