@@ -2572,6 +2572,7 @@ pub fn gen_std_dynamic_import_trampoline_arm64(
         let mut stack_param_count: usize = 0;
 
         for (i, ty) in sig.params().iter().enumerate() {
+            println!(">>>\tcompiling argument {}, type {:?}", i, ty);
             let source_loc = match argalloc.next(*ty, calling_convention) {
                 Some(ARM64Register::GPR(gpr)) => Location::GPR(gpr),
                 Some(ARM64Register::NEON(neon)) => Location::SIMD(neon),
