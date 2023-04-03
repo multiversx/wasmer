@@ -2564,6 +2564,8 @@ pub fn gen_std_dynamic_import_trampoline_arm64(
         }
     }
 
+    println!(">>>\ttotal number of args {}", sig.params().len());
+
     // Copy arguments.
     if !sig.params().is_empty() {
         let mut argalloc = ArgumentRegisterAllocator::default();
