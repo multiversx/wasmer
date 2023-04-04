@@ -2406,7 +2406,6 @@ pub fn gen_std_trampoline_arm64(
     sig: &FunctionType,
     calling_convention: CallingConvention,
 ) -> FunctionBody {
-    println!(">>> entering gen_std_trampoline_arm64()");
     let mut a = Assembler::new(0);
 
     let fptr = GPR::X27;
@@ -2532,7 +2531,6 @@ pub fn gen_std_dynamic_import_trampoline_arm64(
     sig: &FunctionType,
     calling_convention: CallingConvention,
 ) -> FunctionBody {
-    println!(">>> entering gen_std_dynamic_import_trampoline_arm64()");
     let mut a = Assembler::new(0);
     // Allocate argument array.
     let stack_offset: usize = 16 * std::cmp::max(sig.params().len(), sig.results().len());
@@ -2564,8 +2562,6 @@ pub fn gen_std_dynamic_import_trampoline_arm64(
         }
     }
 
-    println!(">>>\ttotal number of args {}", sig.params().len());
-
     // Copy arguments.
     if !sig.params().is_empty() {
         let mut argalloc = ArgumentRegisterAllocator::default();
@@ -2574,8 +2570,6 @@ pub fn gen_std_dynamic_import_trampoline_arm64(
         let mut stack_param_count: usize = 0;
 
         for (i, ty) in sig.params().iter().enumerate() {
-            println!(">>>\tcompiling argument {}, type {:?}", i, ty);
-            println!(">>>\tcurrent stack_param_count {}", stack_param_count);
             let source_loc = match argalloc.next(*ty, calling_convention) {
                 Some(ARM64Register::GPR(gpr)) => Location::GPR(gpr),
                 Some(ARM64Register::NEON(neon)) => Location::SIMD(neon),
@@ -2586,10 +2580,6 @@ pub fn gen_std_dynamic_import_trampoline_arm64(
                             _ => {
                                 if stack_param_count & 7 != 0 {
                                     stack_param_count = (stack_param_count + 7) & !7;
-                                    println!(
-                                        ">>>\tAppleAarch64: stack_param_count updated to {}",
-                                        stack_param_count
-                                    );
                                 };
                                 Size::S64
                             }
@@ -2601,16 +2591,11 @@ pub fn gen_std_dynamic_import_trampoline_arm64(
                         Location::GPR(GPR::X26),
                         Location::Memory(GPR::XzrSp, (stack_offset + 16 + stack_param_count) as _),
                     );
-                    println!(
-                        ">>>\temitting LDR from {} + 16 + {}",
-                        stack_offset, stack_param_count
-                    );
                     stack_param_count += match sz {
                         Size::S32 => 4,
                         Size::S64 => 8,
                         _ => unreachable!(),
                     };
-                    println!(">>>\tstack_param_count updated to {}", stack_param_count);
                     Location::GPR(GPR::X26)
                 }
             };
@@ -2699,8 +2684,6 @@ pub fn gen_import_call_trampoline_arm64(
     sig: &FunctionType,
     calling_convention: CallingConvention,
 ) -> CustomSection {
-    println!(">>> entering gen_import_call_trampoline_arm64()");
-
     let mut a = Assembler::new(0);
 
     // Singlepass internally treats all arguments as integers
