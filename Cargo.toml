@@ -10,7 +10,8 @@ publish = false
 autoexamples = false
 
 [dependencies]
-wasmer = { version = "=2.2.1", path = "lib/api", default-features = false }
+wasmer = { version = "=2.2.1", path = "lib/api", default-features = false, features = [
+    "singlepass"]}
 wasmer-compiler = { version = "=2.2.1", path = "lib/compiler" }
 wasmer-compiler-cranelift = { version = "=2.2.1", path = "lib/compiler-cranelift", optional = true }
 wasmer-compiler-singlepass = { version = "=2.2.1", path = "lib/compiler-singlepass", optional = true }
