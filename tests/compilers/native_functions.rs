@@ -32,6 +32,96 @@ fn long_f_dynamic(values: &[Value]) -> Result<Vec<Value>, RuntimeError> {
     )])
 }
 
+fn long_f_custom(
+    a: u32,
+    b: u32,
+    c: u32,
+    d: u32,
+    e: u32,
+    f: u32,
+    g: u32,
+    h: u32,
+    i: u64,
+    j: u64,
+) -> u64 {
+    j as u64
+        + i as u64 * 10
+        + h as u64 * 100
+        + g as u64 * 1000
+        + f as u64 * 10000
+        + e as u64 * 100000
+        + d as u64 * 1000000
+        + c as u64 * 10000000
+        + b as u64 * 100000000
+        + a as u64 * 1000000000
+}
+
+// Used for debugging
+#[cfg(test)]
+mod test {
+    use crate::native_functions::*;
+
+    #[test]
+    fn custom_function_works_for_wasm_function_manyparams() -> anyhow::Result<()> {
+        let compiler = Singlepass::default();
+        let store = Store::new(&Universal::new(compiler).engine());
+
+        let wat = r#"(module
+        (func $longf (import "env" "longf") (param i32 i32 i32 i32 i32 i32 i32 i32 i64 i64) (result i64))
+        (func (export "longf_pure") (param i32 i32 i32 i32 i32 i32 i32 i32 i64 i64) (result i64)
+           (call $longf (local.get 0) (local.get 1) (local.get 2) (local.get 3) (local.get 4) (local.get 5) (local.get 6) (local.get 7) (local.get 8) (local.get 9)))
+        (func (export "longf") (result i64)
+           (call $longf (i32.const 1) (i32.const 2) (i32.const 3) (i32.const 4) (i32.const 5) (i32.const 6) (i32.const 7) (i32.const 8) (i64.const 9) (i64.const 0)))
+        )"#;
+        let module = Module::new(&store, wat).unwrap();
+        let import_object = imports! {
+            "env" => {
+                "longf" => Function::new_native(&store, long_f_custom),
+            },
+        };
+
+        let instance = Instance::new(&module, &import_object)?;
+
+        {
+            let dyn_f: &Function = instance.exports.get("longf")?;
+            let f: NativeFunc<(), i64> = dyn_f.native().unwrap();
+            let result = f.call()?;
+            assert_eq!(result, 1234567890);
+        }
+
+        Ok(())
+    }
+}
+
+#[compiler_test(native_functions)]
+fn custom_function_works_for_wasm_function_manyparams(config: crate::Config) -> anyhow::Result<()> {
+    let store = config.store();
+    let wat = r#"(module
+        (func $longf (import "env" "longf") (param i32 i32 i32 i32 i32 i32 i32 i32 i64 i64) (result i64))
+        (func (export "longf_pure") (param i32 i32 i32 i32 i32 i32 i32 i32 i64 i64) (result i64)
+           (call $longf (local.get 0) (local.get 1) (local.get 2) (local.get 3) (local.get 4) (local.get 5) (local.get 6) (local.get 7) (local.get 8) (local.get 9)))
+        (func (export "longf") (result i64)
+           (call $longf (i32.const 1) (i32.const 2) (i32.const 3) (i32.const 4) (i32.const 5) (i32.const 6) (i32.const 7) (i32.const 8) (i64.const 9) (i64.const 0)))
+        )"#;
+    let module = Module::new(&store, wat).unwrap();
+    let import_object = imports! {
+        "env" => {
+            "longf" => Function::new_native(&store, long_f_custom),
+        },
+    };
+
+    let instance = Instance::new(&module, &import_object)?;
+
+    {
+        let dyn_f: &Function = instance.exports.get("longf")?;
+        let f: NativeFunc<(), i64> = dyn_f.native().unwrap();
+        let result = f.call()?;
+        assert_eq!(result, 1234567890);
+    }
+
+    Ok(())
+}
+
 #[compiler_test(native_functions)]
 fn native_function_works_for_wasm(config: crate::Config) -> anyhow::Result<()> {
     let store = config.store();

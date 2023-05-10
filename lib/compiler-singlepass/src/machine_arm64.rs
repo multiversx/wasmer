@@ -1534,16 +1534,26 @@ impl Machine for MachineARM64 {
                 .emit_stur(Size::S64, location, GPR::X29, -stack_offset);
         } else {
             let tmp = GPR::X17;
-            self.assembler
-                .emit_mov_imm(Location::GPR(tmp), (stack_offset as i64) as u64);
-            self.assembler.emit_sub(
-                Size::S64,
-                Location::GPR(GPR::X29),
-                Location::GPR(tmp),
-                Location::GPR(tmp),
-            );
-            self.assembler
-                .emit_str(Size::S64, location, Location::GPR(tmp));
+            if stack_offset < 0x1_0000 {
+                self.assembler
+                    .emit_mov_imm(Location::GPR(tmp), (-stack_offset as i64) as u64);
+                self.assembler.emit_str(
+                    Size::S64,
+                    location,
+                    Location::Memory2(GPR::X29, tmp, Multiplier::One, 0),
+                );
+            } else {
+                self.assembler
+                    .emit_mov_imm(Location::GPR(tmp), (stack_offset as i64) as u64);
+                self.assembler.emit_sub(
+                    Size::S64,
+                    Location::GPR(GPR::X29),
+                    Location::GPR(tmp),
+                    Location::GPR(tmp),
+                );
+                self.assembler
+                    .emit_str(Size::S64, location, Location::GPR(tmp));
+            }
         }
     }
 
@@ -1571,20 +1581,19 @@ impl Machine for MachineARM64 {
                 6 => Location::GPR(GPR::X6),
                 7 => Location::GPR(GPR::X7),
                 _ => {
-                    let sz = match sz {
-                        Size::S8 => 0,
-                        Size::S16 => 1,
-                        Size::S32 => 2,
-                        Size::S64 => 3,
-                    };
+                    let sz = 1
+                        << match sz {
+                            Size::S8 => 0,
+                            Size::S16 => 1,
+                            Size::S32 => 2,
+                            Size::S64 => 3,
+                        };
                     // align first
-                    if sz > 1 {
-                        if *stack_args & !((1 << sz) - 1) != 0 {
-                            *stack_args = (*stack_args + ((1 << sz) - 1)) & !((1 << sz) - 1);
-                        }
+                    if sz > 1 && *stack_args & (sz - 1) != 0 {
+                        *stack_args = (*stack_args + (sz - 1)) & !(sz - 1);
                     }
                     let loc = Location::Memory(GPR::XzrSp, *stack_args as i32);
-                    *stack_args += 1 << sz;
+                    *stack_args += sz;
                     loc
                 }
             },
@@ -1624,20 +1633,19 @@ impl Machine for MachineARM64 {
                 6 => Location::GPR(GPR::X6),
                 7 => Location::GPR(GPR::X7),
                 _ => {
-                    let sz = match sz {
-                        Size::S8 => 0,
-                        Size::S16 => 1,
-                        Size::S32 => 2,
-                        Size::S64 => 3,
-                    };
+                    let sz = 1
+                        << match sz {
+                            Size::S8 => 0,
+                            Size::S16 => 1,
+                            Size::S32 => 2,
+                            Size::S64 => 3,
+                        };
                     // align first
-                    if sz > 1 {
-                        if *stack_args & !((1 << sz) - 1) != 0 {
-                            *stack_args = (*stack_args + ((1 << sz) - 1)) & !((1 << sz) - 1);
-                        }
+                    if sz > 1 && *stack_args & (sz - 1) != 0 {
+                        *stack_args = (*stack_args + (sz - 1)) & !(sz - 1);
                     }
                     let loc = Location::Memory(GPR::X29, 16 * 2 + *stack_args as i32);
-                    *stack_args += 1 << sz;
+                    *stack_args += sz;
                     loc
                 }
             },
