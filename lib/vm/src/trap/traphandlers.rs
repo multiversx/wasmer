@@ -41,6 +41,7 @@ cfg_if::cfg_if! {
         static mut PREV_SIGBUS: MaybeUninit<libc::sigaction> = MaybeUninit::uninit();
         static mut PREV_SIGILL: MaybeUninit<libc::sigaction> = MaybeUninit::uninit();
         static mut PREV_SIGFPE: MaybeUninit<libc::sigaction> = MaybeUninit::uninit();
+        static mut PREV_SIGSTKFLT: MaybeUninit<libc::sigaction> = MaybeUninit::uninit();
 
         /// Attach handlers to OS signals
         pub unsafe fn platform_init() {
@@ -97,6 +98,8 @@ cfg_if::cfg_if! {
             if cfg!(target_arch = "arm") || cfg!(target_vendor = "apple") {
                 register(&mut PREV_SIGBUS, libc::SIGBUS);
             }
+
+            register(&mut PREV_SIGSTKFLT, 16);
         }
 
         #[cfg(target_vendor = "apple")]
