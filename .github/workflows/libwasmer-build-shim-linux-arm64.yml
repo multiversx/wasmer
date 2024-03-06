@@ -32,7 +32,7 @@ jobs:
           file: ./Docker/arm64.dockerfile
           tags: mx-builder
 
-      - name: Run container, build library
+      - name: Copy library from Docker image
         run: docker run --platform="linux/arm64" --rm mx-builder cat /data/libwasmer_linux_arm64_shim.so > $GITHUB_WORKSPACE/libwasmer_linux_arm64_shim.so
 
       - name: Save artifacts

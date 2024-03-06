@@ -1,8 +1,7 @@
 FROM arm64v8/golang:1.20.7
 
 RUN apt-get update && apt-get install -y \
-    patchelf \
-    build-essential
+    patchelf
 
 COPY ./capi_shim /capi_shim
 WORKDIR /capi_shim
