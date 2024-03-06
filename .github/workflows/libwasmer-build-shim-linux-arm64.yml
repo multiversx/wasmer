@@ -12,7 +12,7 @@ jobs:
     name: Build shim library for Linux ARM64
     runs-on: ubuntu-latest
     steps:
-      - name: Check out code into the Go module directory
+      - name: Check out code
         uses: actions/checkout@v4
         with:
           fetch-depth: "0"
