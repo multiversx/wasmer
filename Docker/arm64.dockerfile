@@ -1,4 +1,4 @@
-FROM arm64v8/golang:1.20.7 as builder
+FROM arm64v8/golang:1.20.7
 
 RUN apt-get update && apt-get install -y \
     patchelf \
