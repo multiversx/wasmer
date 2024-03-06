@@ -23,15 +23,6 @@ jobs:
         with:
           fetch-depth: "0"
 
-      - name: Get dependencies
-        shell: bash
-        run: |
-          go get -v -t -d ./...
-          if [ -f Gopkg.toml ]; then
-              curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-              dep ensure
-          fi
-
       - name: Build library
         run: |
           cd ./capi_shim
