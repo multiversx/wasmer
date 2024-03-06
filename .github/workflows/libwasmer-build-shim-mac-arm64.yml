@@ -1,4 +1,4 @@
-name: libwasmer-build-shim-mac-arm64
+name: libwasmer-build-shim-darwin-arm64
 
 on:
   push:
@@ -32,7 +32,7 @@ jobs:
       - name: Save artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: artifacts
+          name: artifacts-darwin-arm64
           path: |
             libwasmer_darwin_arm64_shim.dylib
           if-no-files-found: error

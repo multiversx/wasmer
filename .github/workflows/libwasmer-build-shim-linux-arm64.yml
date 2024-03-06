@@ -38,7 +38,7 @@ jobs:
       - name: Save artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: artifacts
+          name: artifacts-linux-arm64
           path: |
             libwasmer_linux_arm64_shim.so
           if-no-files-found: error
