@@ -1,0 +1,35 @@
+name: libwasmer-build-dev
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build dynamic debug library for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-18.04
+            artifact_name: libwasmer_linux_amd64.so
+            make_target: capi-linux-amd64-dev
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Make
+        run: make ${{ matrix.make_target }}
+      - name: Save artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: libs
+          path: |
+            target/debug/*.so
+            target/debug/*.dylib
+            lib/runtime-c-api/wasmer.h
+            lib/runtime-c-api/wasmer.hh
