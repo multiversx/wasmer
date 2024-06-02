@@ -50,6 +50,10 @@ impl Memory {
                 errno::errno().to_string(),
             ))
         } else {
+            println!(
+                "[MMAP] memory.rs (from_file_path): mmap of size {}",
+                file_len as usize
+            );
             Ok(Self {
                 ptr: ptr as *mut u8,
                 size: file_len as usize,
@@ -88,6 +92,7 @@ impl Memory {
         if ptr == -1 as _ {
             Err(errno::errno().to_string())
         } else {
+            println!("[MMAP] memory.rs (with_size_protect): mmap of size {}", size);
             Ok(Self {
                 ptr: ptr as *mut u8,
                 size,
@@ -140,6 +145,7 @@ impl Memory {
                 errno::errno().to_string(),
             ))
         } else {
+            println!("[MMAP] memory.rs (with_size): mmap of size {}", size);
             Ok(Self {
                 ptr: ptr as *mut u8,
                 size,
@@ -259,6 +265,7 @@ impl Drop for Memory {
     fn drop(&mut self) {
         if !self.ptr.is_null() {
             let success = unsafe { libc::munmap(self.ptr as _, self.size) };
+            println!("[MUNMAP] memory.rs: munmap of size {}", self.size);
             assert_eq!(success, 0, "failed to unmap memory: {}", errno::errno());
         }
     }
