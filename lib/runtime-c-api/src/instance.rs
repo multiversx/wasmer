@@ -478,6 +478,7 @@ pub unsafe extern "C" fn wasmer_instance_call(
     let instance = &mut *(instance as *mut Instance);
 
     wasmer_middleware_common::opcode_trace::reset_opcodetracer_last_location(instance);
+    println!("WASMER\t\tbegin instance call func {}", func_name_r);
     let result = instance.call(func_name_r, &params[..]);
 
     let result = match result {

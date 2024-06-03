@@ -347,6 +347,7 @@ impl Instance {
     /// # }
     /// ```
     pub fn call(&self, name: &str, params: &[Value]) -> CallResult<Vec<Value>> {
+        println!("WASMER\t\texport_index");
         let export_index =
             self.module
                 .info
@@ -359,6 +360,7 @@ impl Instance {
         let func_index = if let ExportIndex::Func(func_index) = export_index {
             *func_index
         } else {
+            println!("WASMER\t\tfunc_index error for {}", name.to_string());
             return Err(CallError::Resolve(ResolveError::ExportWrongType {
                 name: name.to_string(),
             })
@@ -586,6 +588,7 @@ fn call_func_with_index(
     args: &[Value],
     rets: &mut Vec<Value>,
 ) -> CallResult<()> {
+    println!("WASMER\t\tcall_func_with_index");
     let sig_index = *info
         .func_assoc
         .get(func_index)
@@ -602,6 +605,7 @@ fn call_func_with_index(
         }
     };
 
+    println!("WASMER\t\tcall_func_with_index resolve ctx_ptr");
     let ctx_ptr = match func_index.local_or_import(info) {
         LocalOrImport::Local(_) => local_ctx,
         LocalOrImport::Import(imported_func_index) => unsafe {
@@ -613,6 +617,7 @@ fn call_func_with_index(
         .as_ptr(),
     };
 
+    println!("WASMER\t\tcall_func_with_index resolve prepare trampoline");
     let wasm = runnable
         .get_trampoline(info, sig_index)
         .expect("wasm trampoline");
@@ -628,6 +633,7 @@ pub(crate) fn call_func_with_index_inner(
     args: &[Value],
     rets: &mut Vec<Value>,
 ) -> CallResult<()> {
+    println!("WASMER\t\tcall_func_with_index_inner");
     rets.clear();
 
     let num_results = signature.returns().len();
@@ -639,6 +645,7 @@ pub(crate) fn call_func_with_index_inner(
             .count();
     rets.reserve(num_results);
 
+    println!("WASMER\t\tcall_func_with_index_inner check_param_value_types");
     if !signature.check_param_value_types(args) {
         Err(ResolveError::Signature {
             expected: signature.clone(),
@@ -682,6 +689,7 @@ pub(crate) fn call_func_with_index_inner(
     let run_wasm = |result_space: *mut u64| unsafe {
         let mut error_out = None;
 
+        println!("WASMER\t\tcall_func_with_index_inner invoke");
         let success = invoke(
             trampoline,
             ctx_ptr,
@@ -693,8 +701,10 @@ pub(crate) fn call_func_with_index_inner(
         );
 
         if success {
+            println!("WASMER\t\tcall_func_with_index_inner invoke ok");
             Ok(())
         } else {
+            println!("WASMER\t\tcall_func_with_index_inner invoke error");
             Err(error_out
                 .map(RuntimeError)
                 .unwrap_or_else(|| RuntimeError(Box::new("invoke(): Unknown error".to_string()))))
@@ -711,12 +721,14 @@ pub(crate) fn call_func_with_index_inner(
 
     match signature.returns() {
         &[] => {
+            println!("WASMER\t\tcall_func_with_index_inner run_wasm 1");
             run_wasm(ptr::null_mut())?;
             Ok(())
         }
         &[Type::V128] => {
             let mut result = [0u64; 2];
 
+            println!("WASMER\t\tcall_func_with_index_inner run_wasm 2");
             run_wasm(result.as_mut_ptr())?;
 
             let mut bytes = [0u8; 16];
@@ -730,6 +742,7 @@ pub(crate) fn call_func_with_index_inner(
         &[ty] => {
             let mut result = 0u64;
 
+            println!("WASMER\t\tcall_func_with_index_inner run_wasm 3");
             run_wasm(&mut result)?;
 
             rets.push(raw_to_value(result, ty));
@@ -739,6 +752,7 @@ pub(crate) fn call_func_with_index_inner(
         result_tys @ _ => {
             let mut results: SmallVec<[u64; 8]> = smallvec![0; num_results];
 
+            println!("WASMER\t\tcall_func_with_index_inner run_wasm 4");
             run_wasm(results.as_mut_ptr())?;
 
             rets.extend(
@@ -748,6 +762,7 @@ pub(crate) fn call_func_with_index_inner(
                     .map(|(&raw, &ty)| raw_to_value(raw, ty)),
             );
 
+            println!("WASMER\t\tcall_func_with_index_inner ok");
             Ok(())
         }
     }
