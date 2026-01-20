@@ -8,19 +8,16 @@
 #![warn(unused_import_braces)]
 #![cfg_attr(feature = "std", deny(unstable_features))]
 #![cfg_attr(not(feature = "std"), no_std)]
-#![cfg_attr(feature = "cargo-clippy", allow(clippy::new_without_default))]
-#![cfg_attr(
-    feature = "cargo-clippy",
-    warn(
-        clippy::float_arithmetic,
-        clippy::mut_mut,
-        clippy::nonminimal_bool,
-        clippy::option_map_unwrap_or,
-        clippy::option_map_unwrap_or_else,
-        clippy::print_stdout,
-        clippy::unicode_not_nfc,
-        clippy::use_self
-    )
+#![allow(clippy::new_without_default)]
+#![warn(
+    clippy::float_arithmetic,
+    clippy::mut_mut,
+    clippy::nonminimal_bool,
+    clippy::option_map_unwrap_or,
+    clippy::option_map_unwrap_or_else,
+    clippy::print_stdout,
+    clippy::unicode_not_nfc,
+    clippy::use_self
 )]
 
 #[cfg(all(feature = "std", feature = "core"))]

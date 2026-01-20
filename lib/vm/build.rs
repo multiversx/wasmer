@@ -2,7 +2,7 @@
 
 use std::env;
 
-fn main() {
+fn compile_handlers() {
     println!("cargo:rerun-if-changed=src/trap/handlers.c");
 
     cc::Build::new()
@@ -16,4 +16,20 @@ fn main() {
         )
         .file("src/trap/handlers.c")
         .compile("handlers");
+}
+
+#[rustversion::since(1.89)]
+fn configure_probestack() {
+    println!("cargo::rustc-cfg=missing_rust_probestack");
+    println!("cargo::rustc-check-cfg=cfg(missing_rust_probestack)");
+}
+
+#[rustversion::before(1.89)]
+fn configure_probestack() {
+    println!("cargo::rustc-check-cfg=cfg(missing_rust_probestack)");
+}
+
+fn main() {
+    configure_probestack();
+    compile_handlers();
 }
