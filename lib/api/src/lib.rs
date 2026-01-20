@@ -9,22 +9,16 @@
     broken_intra_doc_links
 )]
 #![warn(unused_import_braces)]
-#![cfg_attr(
-    feature = "cargo-clippy",
-    allow(clippy::new_without_default, vtable_address_comparisons)
-)]
-#![cfg_attr(
-    feature = "cargo-clippy",
-    warn(
-        clippy::float_arithmetic,
-        clippy::mut_mut,
-        clippy::nonminimal_bool,
-        clippy::option_map_unwrap_or,
-        clippy::option_map_unwrap_or_else,
-        clippy::print_stdout,
-        clippy::unicode_not_nfc,
-        clippy::use_self
-    )
+#![allow(clippy::new_without_default, clippy::vtable_address_comparisons)]
+#![warn(
+    clippy::float_arithmetic,
+    clippy::mut_mut,
+    clippy::nonminimal_bool,
+    clippy::option_map_unwrap_or,
+    clippy::option_map_unwrap_or_else,
+    clippy::print_stdout,
+    clippy::unicode_not_nfc,
+    clippy::use_self
 )]
 #![cfg_attr(feature = "js", crate_type = "cdylib")]
 #![cfg_attr(feature = "js", crate_type = "rlib")]
