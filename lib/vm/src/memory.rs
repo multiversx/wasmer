@@ -121,7 +121,11 @@ pub trait Memory: fmt::Debug + Send + Sync + MemoryUsage {
     /// The pointer returned in [`VMMemoryDefinition`] must be valid for the lifetime of this memory.
     fn vmmemory(&self) -> NonNull<VMMemoryDefinition>;
 
-    /// Shrink memory to the minimum amount of wasm pages.
+    /// Shrink memory to the minimum amount of wasm pages and zero its contents.
+    ///
+    /// Pages above the minimum are discarded and made inaccessible again, and
+    /// the pages below it are zero-filled. For static memories the address
+    /// space reservation and the base pointer are preserved.
     fn shrink_to_minimum(&self) -> Result<(), MemoryError>;
 }
 
@@ -429,34 +433,195 @@ impl Memory for LinearMemory {
         unsafe { self.get_vm_memory_definition() }
     }
 
+    /// Shrink the memory back to its declared minimum size and zero it.
+    ///
+    /// Everything above `minimum` is discarded and made inaccessible again;
+    /// the pages below it are zero-filled. Callers are expected to re-apply
+    /// the module's data segments afterwards.
+    ///
+    /// For [`MemoryStyle::Static`] memories the whole `bound + guard`
+    /// reservation is kept and the base address never changes. Compiled code
+    /// for static memories carries no explicit bounds checks: it relies on
+    /// every address a wasm32 program can form landing inside that
+    /// reservation and hitting an inaccessible page. Re-mapping a smaller
+    /// region here would silently remove that protection for the rest of the
+    /// instance's life, so only the accessible prefix is changed, in place.
+    ///
+    /// [`MemoryStyle::Dynamic`] memories are bounds checked by compiled code
+    /// and are already allowed to move on `grow`, so a fresh `minimum + guard`
+    /// mapping is allocated for them.
     fn shrink_to_minimum(&self) -> Result<(), MemoryError> {
-        if self.size() == self.minimum {
-            return Ok(());
-        }
-
         let mut mmap_guard = self.mmap.lock().unwrap();
         let mmap = mmap_guard.borrow_mut();
 
         let new_pages = self.minimum;
         let new_bytes = new_pages.bytes().0;
+        let current_bytes = mmap.size.bytes().0;
 
-        let guard_bytes = self.offset_guard_size;
-        let request_bytes = new_bytes + guard_bytes;
+        match self.style {
+            MemoryStyle::Static { .. } => {
+                // `new_internal` guarantees `minimum <= bound`, so the whole
+                // `[new_bytes, current_bytes)` range lies inside the
+                // reservation and `[0, new_bytes)` is committed.
+                if current_bytes > new_bytes {
+                    mmap.alloc
+                        .decommit(new_bytes, current_bytes - new_bytes)
+                        .map_err(MemoryError::Region)?;
+                }
+                unsafe {
+                    std::ptr::write_bytes(mmap.alloc.as_mut_ptr(), 0, new_bytes);
+                }
+            }
+            MemoryStyle::Dynamic { .. } => {
+                if current_bytes != new_bytes {
+                    // Same request as `new_internal`, which already succeeded once.
+                    let request_bytes = new_bytes.checked_add(self.offset_guard_size).unwrap();
+                    mmap.alloc = Mmap::accessible_reserved(new_bytes, request_bytes)
+                        .map_err(MemoryError::Region)?;
+                } else {
+                    unsafe {
+                        std::ptr::write_bytes(mmap.alloc.as_mut_ptr(), 0, new_bytes);
+                    }
+                }
+            }
+        }
 
-        let new_mmap =
-            Mmap::accessible_reserved(new_bytes, request_bytes).map_err(MemoryError::Region)?;
-
-        mmap.alloc = new_mmap;
         mmap.size = new_pages;
 
         // update memory definition
         unsafe {
             let mut md_ptr = self.get_vm_memory_definition();
             let md = md_ptr.as_mut();
-            md.current_length = new_pages.bytes().0.try_into().unwrap();
+            md.current_length = new_bytes.try_into().unwrap();
             md.base = mmap.alloc.as_mut_ptr();
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The 64-bit production tunables: a 4 GiB bound plus a 2 GiB guard.
+    fn static_style() -> MemoryStyle {
+        MemoryStyle::Static {
+            bound: Pages(0x1_0000),
+            offset_guard_size: 0x8000_0000,
+        }
+    }
+
+    fn reserved_len(memory: &LinearMemory) -> usize {
+        memory.mmap.lock().unwrap().alloc.len()
+    }
+
+    fn assert_inaccessible(base: *mut u8, offset: usize) {
+        let region = region::query(unsafe { base.add(offset) }).unwrap();
+        assert_eq!(
+            region.protection(),
+            region::Protection::NONE,
+            "offset {:#x} must be inaccessible",
+            offset
+        );
+    }
+
+    #[test]
+    fn static_shrink_keeps_reservation_and_base() {
+        let page = Pages(1).bytes().0;
+        let bound = Pages(0x1_0000).bytes().0;
+        let ty = MemoryType::new(Pages(2), Some(Pages(64)), false);
+        let memory = LinearMemory::new(&ty, &static_style()).unwrap();
+        let md_ptr = memory.vmmemory();
+        let base = unsafe { md_ptr.as_ref().base };
+        let reserved = reserved_len(&memory);
+        assert_eq!(reserved, bound + 0x8000_0000);
+
+        // Grow, then dirty both the original prefix and the grown tail.
+        assert_eq!(memory.grow(Pages(3)).unwrap(), Pages(2));
+        assert_eq!(memory.size(), Pages(5));
+        unsafe {
+            *base = 0xAA;
+            *base.add(4 * page) = 0xBB;
+        }
+
+        memory.shrink_to_minimum().unwrap();
+
+        // Logical size and the definition seen by compiled code are back at
+        // the minimum, the mapping and its base are untouched, and the
+        // prefix is zeroed.
+        assert_eq!(memory.size(), Pages(2));
+        let md = unsafe { md_ptr.as_ref() };
+        assert_eq!(md.base, base);
+        assert_eq!(md.current_length, 2 * page);
+        assert_eq!(reserved_len(&memory), reserved);
+        assert_eq!(unsafe { *base }, 0);
+
+        // The grown tail is inaccessible again, and so is everything up to the
+        // end of the bound and the guard behind it.
+        assert_inaccessible(base, 2 * page);
+        assert_inaccessible(base, 4 * page);
+        assert_inaccessible(base, bound - page);
+        assert_inaccessible(base, bound + 0x8000_0000 - page);
+
+        // Growing again reuses the same mapping and yields zeroed pages.
+        assert_eq!(memory.grow(Pages(3)).unwrap(), Pages(2));
+        let md = unsafe { md_ptr.as_ref() };
+        assert_eq!(md.base, base);
+        assert_eq!(md.current_length, 5 * page);
+        assert_eq!(reserved_len(&memory), reserved);
+        assert_eq!(unsafe { *base.add(4 * page) }, 0);
+    }
+
+    #[test]
+    fn static_shrink_at_minimum_zeroes_in_place() {
+        let ty = MemoryType::new(Pages(1), None, false);
+        let memory = LinearMemory::new(&ty, &static_style()).unwrap();
+        let md_ptr = memory.vmmemory();
+        let base = unsafe { md_ptr.as_ref().base };
+        let reserved = reserved_len(&memory);
+        unsafe {
+            *base.add(100) = 0xAA;
+        }
+
+        memory.shrink_to_minimum().unwrap();
+
+        let md = unsafe { md_ptr.as_ref() };
+        assert_eq!(memory.size(), Pages(1));
+        assert_eq!(md.base, base);
+        assert_eq!(reserved_len(&memory), reserved);
+        assert_eq!(unsafe { *base.add(100) }, 0);
+    }
+
+    #[test]
+    fn dynamic_shrink_reallocates_minimum_plus_guard() {
+        let page = Pages(1).bytes().0;
+        let guard = 0x1_0000;
+        let ty = MemoryType::new(Pages(1), None, false);
+        let style = MemoryStyle::Dynamic {
+            offset_guard_size: guard as u64,
+        };
+        let memory = LinearMemory::new(&ty, &style).unwrap();
+        let md_ptr = memory.vmmemory();
+
+        assert_eq!(memory.grow(Pages(2)).unwrap(), Pages(1));
+        unsafe {
+            *md_ptr.as_ref().base = 0xAA;
+        }
+
+        memory.shrink_to_minimum().unwrap();
+
+        let md = unsafe { md_ptr.as_ref() };
+        assert_eq!(memory.size(), Pages(1));
+        assert_eq!(md.current_length, page);
+        assert_eq!(reserved_len(&memory), page + guard);
+        assert_eq!(unsafe { *md.base }, 0);
+
+        // Growing after the shrink still works and keeps the data.
+        unsafe {
+            *md.base = 0xCC;
+        }
+        assert_eq!(memory.grow(Pages(1)).unwrap(), Pages(1));
+        assert_eq!(unsafe { *md_ptr.as_ref().base }, 0xCC);
     }
 }

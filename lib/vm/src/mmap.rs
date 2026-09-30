@@ -228,6 +228,83 @@ impl Mmap {
         Ok(())
     }
 
+    /// Return the memory starting at `start` and extending for `len` bytes to
+    /// the reserved-but-inaccessible state it had before `make_accessible` was
+    /// called on it. The pages become inaccessible and their contents are
+    /// discarded, so a later `make_accessible` on the same range yields
+    /// zero-filled pages again. The mapping itself stays in place: `as_ptr()`
+    /// and `len()` are unchanged and the range remains reserved for this `Mmap`.
+    /// `start` and `len` must be native page-size multiples and describe a range within
+    /// `self`'s reserved memory.
+    #[cfg(not(target_os = "windows"))]
+    pub fn decommit(&mut self, start: usize, len: usize) -> Result<(), String> {
+        let page_size = region::page::size();
+        assert_eq!(start & (page_size - 1), 0);
+        assert_eq!(len & (page_size - 1), 0);
+        assert_le!(len, self.len);
+        assert_le!(start, self.len - len);
+
+        if len == 0 {
+            return Ok(());
+        }
+
+        // Map fresh anonymous `PROT_NONE` pages over the range. `MAP_FIXED`
+        // atomically replaces the existing pages, dropping their contents and
+        // letting the OS reclaim the physical frames. Unlike
+        // `madvise(MADV_DONTNEED)` this behaves the same on Linux and macOS;
+        // on macOS `MADV_DONTNEED` only deactivates pages without discarding
+        // their contents.
+        let ptr = unsafe {
+            libc::mmap(
+                (self.ptr + start) as *mut libc::c_void,
+                len,
+                libc::PROT_NONE,
+                libc::MAP_PRIVATE | libc::MAP_ANON | libc::MAP_FIXED,
+                -1,
+                0,
+            )
+        };
+        if ptr as isize == -1_isize {
+            return Err(io::Error::last_os_error().to_string());
+        }
+        debug_assert_eq!(ptr as usize, self.ptr + start);
+
+        Ok(())
+    }
+
+    /// Return the memory starting at `start` and extending for `len` bytes to
+    /// the reserved-but-inaccessible state it had before `make_accessible` was
+    /// called on it. The pages become inaccessible and their contents are
+    /// discarded, so a later `make_accessible` on the same range yields
+    /// zero-filled pages again. The mapping itself stays in place: `as_ptr()`
+    /// and `len()` are unchanged and the range remains reserved for this `Mmap`.
+    /// `start` and `len` must be native page-size multiples and describe a range within
+    /// `self`'s reserved memory.
+    #[cfg(target_os = "windows")]
+    pub fn decommit(&mut self, start: usize, len: usize) -> Result<(), String> {
+        use winapi::ctypes::c_void;
+        use winapi::um::memoryapi::VirtualFree;
+        use winapi::um::winnt::MEM_DECOMMIT;
+        let page_size = region::page::size();
+        assert_eq!(start & (page_size - 1), 0);
+        assert_eq!(len & (page_size - 1), 0);
+        assert_le!(len, self.len);
+        assert_le!(start, self.len - len);
+
+        if len == 0 {
+            return Ok(());
+        }
+
+        // Decommit the pages but keep them reserved. Committing them again
+        // with `make_accessible` yields zero-filled pages.
+        let ptr = self.ptr as *const u8;
+        if unsafe { VirtualFree(ptr.add(start) as *mut c_void, len, MEM_DECOMMIT) } == 0 {
+            return Err(io::Error::last_os_error().to_string());
+        }
+
+        Ok(())
+    }
+
     /// Return the allocated memory as a slice of u8.
     pub fn as_slice(&self) -> &[u8] {
         unsafe { slice::from_raw_parts(self.ptr as *const u8, self.len) }
@@ -303,5 +380,33 @@ mod tests {
         assert_eq!(round_up_to_page_size(1, 4096), 4096);
         assert_eq!(round_up_to_page_size(4096, 4096), 4096);
         assert_eq!(round_up_to_page_size(4097, 4096), 8192);
+    }
+
+    #[test]
+    fn decommit_keeps_mapping_and_zeroes_on_recommit() {
+        let page = region::page::size();
+        let mut mmap = Mmap::accessible_reserved(2 * page, 4 * page).unwrap();
+        let ptr = mmap.as_mut_ptr();
+        unsafe {
+            *ptr = 0xAA;
+            *ptr.add(page) = 0xBB;
+        }
+
+        mmap.decommit(page, page).unwrap();
+
+        // Same mapping, same length, first page untouched.
+        assert_eq!(mmap.as_mut_ptr(), ptr);
+        assert_eq!(mmap.len(), 4 * page);
+        assert_eq!(unsafe { *ptr }, 0xAA);
+        // The decommitted page is inaccessible, like the never-committed ones.
+        let decommitted = region::query(unsafe { ptr.add(page) }).unwrap();
+        assert_eq!(decommitted.protection(), region::Protection::NONE);
+        let reserved = region::query(unsafe { ptr.add(2 * page) }).unwrap();
+        assert_eq!(reserved.protection(), region::Protection::NONE);
+
+        // Committing the page again yields zeroes, not the old contents.
+        mmap.make_accessible(page, page).unwrap();
+        assert_eq!(mmap.as_mut_ptr(), ptr);
+        assert_eq!(unsafe { *ptr.add(page) }, 0);
     }
 }

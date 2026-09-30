@@ -24,30 +24,10 @@ fn reset_memories(
     instance: &Instance,
     data_initializers: &[OwnedDataInitializer],
 ) -> Result<(), String> {
-    zero_memories(instance)?;
+    // `shrink_to_minimum` discards everything above the minimum and zeroes
+    // the rest, so the memories only need their data segments re-applied.
     shrink_memories(instance)?;
     reinitialize_memories(instance, data_initializers)
-}
-
-fn zero_memories(instance: &Instance) -> Result<(), String> {
-    for (_local_memory_index, memory) in instance.memories.iter() {
-        unsafe {
-            let memory = memory.vmmemory().as_ref();
-            let len = memory.current_length as u32;
-            let result = memory.memory_fill(0, 0, len);
-            if let Err(trap) = result {
-                match trap {
-                    Trap::Lib {
-                        trap_code,
-                        backtrace: _,
-                    } => return Err(String::from(trap_code.message())),
-                    _ => return Err(String::from("unexpected trap")),
-                }
-            }
-        }
-    }
-
-    Ok(())
 }
 
 fn shrink_memories(instance: &Instance) -> Result<(), String> {

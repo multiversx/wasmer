@@ -369,3 +369,74 @@ fn large_number_local(mut config: crate::Config) -> Result<()> {
     assert_eq!(&Value::I64(1 as i64), result.get(0).unwrap());
     Ok(())
 }
+
+/// `Instance::reset` must keep the static-memory guard region intact.
+///
+/// Compiled code for static memories carries no bounds checks: it relies on
+/// the `bound + guard` reservation made at instantiation. Shrinking the memory
+/// back to its minimum on reset used to replace that reservation with a
+/// `minimum + guard` one, moving the base and leaving every address above the
+/// new mapping unprotected.
+#[compiler_test(issues)]
+fn memory_guard_survives_reset(config: crate::Config) -> Result<()> {
+    let store = config.store();
+    let wat = r#"
+    (module
+        (memory (export "memory") 1 100)
+        (data (i32.const 0) "\01\02\03\04")
+        (func (export "grow") (param i32) (result i32)
+            (memory.grow (local.get 0)))
+        (func (export "load") (param i32) (result i32)
+            (i32.load (local.get 0)))
+        (func (export "store") (param i32 i32)
+            (i32.store (local.get 0) (local.get 1))))
+    "#;
+    let module = Module::new(&store, wat)?;
+    let instance = Instance::new(&module, &imports! {})?;
+    let memory = instance.exports.get_memory("memory")?;
+    let grow = instance.exports.get_native_function::<i32, i32>("grow")?;
+    let load = instance.exports.get_native_function::<i32, i32>("load")?;
+    let store_word = instance
+        .exports
+        .get_native_function::<(i32, i32), ()>("store")?;
+
+    let page = WASM_PAGE_SIZE as i32;
+    let base = memory.data_ptr();
+
+    // Grow, then dirty a page in the grown tail.
+    assert_eq!(grow.call(3)?, 1);
+    store_word.call(3 * page, 0x5eed_5eed)?;
+    assert_eq!(load.call(3 * page)?, 0x5eed_5eed);
+
+    instance.reset().map_err(anyhow::Error::msg)?;
+
+    assert_eq!(memory.size(), Pages(1));
+    assert_eq!(
+        memory.data_ptr(),
+        base,
+        "reset must not move a static memory"
+    );
+    assert_eq!(load.call(0)?, 0x0403_0201, "data segments are re-applied");
+
+    // The previously grown page is out of bounds again, and so is everything
+    // up to the end of the 4 GiB static bound.
+    assert_oob(load.call(3 * page));
+    assert_oob(load.call(0x4000_0000));
+    assert_oob(load.call(0xC000_0000_u32 as i32));
+    assert_oob(load.call(-4));
+
+    // Growing again reuses the same mapping and yields zeroed pages.
+    assert_eq!(grow.call(3)?, 1);
+    assert_eq!(memory.data_ptr(), base);
+    assert_eq!(load.call(3 * page)?, 0);
+
+    return Ok(());
+
+    fn assert_oob(result: std::result::Result<i32, RuntimeError>) {
+        let err = result.expect_err("access past the current memory size must trap");
+        let trap = err
+            .to_trap()
+            .expect("must be a wasm trap, not a host error");
+        assert_eq!(trap.message(), "out of bounds memory access");
+    }
+}
