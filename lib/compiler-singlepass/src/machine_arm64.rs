@@ -2582,6 +2582,8 @@ impl Machine for MachineARM64 {
             Location::GPR(tmp)
         };
         let label_loop = self.assembler.get_label();
+        let label_last_bit = self.assembler.get_label();
+        let label_shift_done = self.assembler.get_label();
         let label_exit = self.assembler.get_label();
         self.assembler
             .emit_mov(Size::S32, Location::GPR(GPR::XzrSp), dest); // 0 => dest
@@ -2590,9 +2592,23 @@ impl Machine for MachineARM64 {
         self.assembler
             .emit_add(Size::S32, dest, Location::Imm8(1), dest); // inc dest
         self.assembler.emit_clz(Size::S32, src, tmp); // clz src => tmp
+        // When only bit 0 of src remains, clz(src) == 31, so shifting left by
+        // clz+1 == 32 below would be a no-op: ARM64's register-controlled LSL
+        // takes the shift amount mod the register width (32), so `src` would
+        // stay nonzero forever and the loop would never terminate
+        // (aarch64 i32.popcnt infinite loop, wasmerio/wasmer#3210). That last
+        // bit is already accounted for in `dest` above, so `src` is simply done.
+        self.assembler.emit_cmp(Size::S32, Location::Imm8(31), tmp);
+        self.assembler
+            .emit_bcond_label(Condition::Eq, label_last_bit);
         self.assembler
             .emit_add(Size::S32, tmp, Location::Imm8(1), tmp); // inc tmp
         self.assembler.emit_lsl(Size::S32, src, tmp, src); // src << tmp => src
+        self.assembler.emit_b_label(label_shift_done);
+        self.assembler.emit_label(label_last_bit);
+        self.assembler
+            .emit_mov(Size::S32, Location::GPR(GPR::XzrSp), src); // last bit consumed => src = 0
+        self.assembler.emit_label(label_shift_done);
         self.assembler.emit_cbnz_label(Size::S32, src, label_loop); // if src!=0 goto loop
         self.assembler.emit_label(label_exit);
         if ret != dest {
@@ -3535,6 +3551,8 @@ impl Machine for MachineARM64 {
             Location::GPR(tmp)
         };
         let label_loop = self.assembler.get_label();
+        let label_last_bit = self.assembler.get_label();
+        let label_shift_done = self.assembler.get_label();
         let label_exit = self.assembler.get_label();
         self.assembler
             .emit_mov(Size::S32, Location::GPR(GPR::XzrSp), dest);
@@ -3543,9 +3561,22 @@ impl Machine for MachineARM64 {
         self.assembler
             .emit_add(Size::S32, dest, Location::Imm8(1), dest);
         self.assembler.emit_clz(Size::S64, src, tmp);
+        // Same fix as i32_popcnt, at the 64-bit register width: when only bit 0
+        // of src remains, clz(src) == 63 and shifting left by clz+1 == 64 would
+        // be a no-op under ARM64's mod-register-width shift semantics, so the
+        // loop below would never see src == 0 (aarch64 popcnt infinite loop,
+        // wasmerio/wasmer#3210).
+        self.assembler.emit_cmp(Size::S32, Location::Imm8(63), tmp);
+        self.assembler
+            .emit_bcond_label(Condition::Eq, label_last_bit);
         self.assembler
             .emit_add(Size::S32, tmp, Location::Imm8(1), tmp);
         self.assembler.emit_lsl(Size::S64, src, tmp, src);
+        self.assembler.emit_b_label(label_shift_done);
+        self.assembler.emit_label(label_last_bit);
+        self.assembler
+            .emit_mov(Size::S64, Location::GPR(GPR::XzrSp), src); // last bit consumed => src = 0
+        self.assembler.emit_label(label_shift_done);
         self.assembler.emit_cbnz_label(Size::S64, src, label_loop);
         self.assembler.emit_label(label_exit);
         if ret != dest {

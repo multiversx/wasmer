@@ -1,0 +1,9 @@
+# Keeps the build context small when this checkout is passed to docker buildx
+# as a named build context (see mx-vm-executor-rs/Makefile: WASMER_FORK_DIR).
+target/
+**/target/
+
+.git/
+.claude/
+**/.DS_Store
+**/*.rs.bk
