@@ -1,5 +1,5 @@
 //! This file is mainly to assure specific issues are working well
-use anyhow::Result;
+use anyhow::{Context, Result};
 use wasmer::*;
 
 /// Corruption of WasmerEnv when using call indirect.
@@ -439,4 +439,65 @@ fn memory_guard_survives_reset(config: crate::Config) -> Result<()> {
             .expect("must be a wasm trap, not a host error");
         assert_eq!(trap.message(), "out of bounds memory access");
     }
+}
+
+/// Singlepass must reclaim the stack slot of a spilled `then` result at `else`.
+///
+/// When lowering `else`, `release_locations_value` frees the native stack
+/// slots of the values left by the `then` arm. It used to emit `adjust_stack`
+/// (grow) instead of `restore_stack` (shrink), so every pass through the
+/// `then` arm moved the native stack pointer further away from the compiler's
+/// view of the frame (WASMageddon; upstream wasmer commit f617b859).
+///
+/// Values come from `local.get`: `i64.const` stays an immediate and never takes
+/// a register or a stack slot. Enough of them are pushed before the `if` to use
+/// up the value registers (6 on x86_64, 7 on aarch64), so the `then` result is
+/// spilled; 31 and 32 cover both aarch64 16-byte stack-alignment parities.
+#[compiler_test(issues)]
+fn if_else_reclaims_spilled_result(config: crate::Config) -> Result<()> {
+    for prefix_count in [0, 4, 6, 7, 8, 31, 32] {
+        let pushes = "local.get $value\n".repeat(prefix_count);
+        let drops = "drop\n".repeat(prefix_count);
+        let wat = format!(
+            r#"(module
+                (func $probe)
+                (func (export "check")
+                    (param $value i64) (param $condition i32) (result i64)
+                    (local $remaining i32) (local $acc i64)
+                    i32.const 400000 local.set $remaining
+                    loop
+                        {pushes}
+                        local.get $condition
+                        if (result i64)
+                            local.get $value
+                        else
+                            i64.const 7
+                        end
+                        local.get $acc i64.add local.set $acc
+                        {drops}
+                        call $probe
+                        local.get $remaining i32.const 1 i32.sub
+                        local.tee $remaining br_if 0
+                    end
+                    local.get $acc))"#
+        );
+        let store = config.store();
+        let module = Module::new(&store, &wat)?;
+        let instance = Instance::new(&module, &imports! {})?;
+        let check = instance
+            .exports
+            .get_native_function::<(i64, i32), i64>("check")?;
+        for condition in [0, 1] {
+            let expected = 400_000 * if condition == 0 { 7 } else { 123 };
+            // A return-value assertion alone misses leaked native stack slots:
+            // the function epilogue restores SP from FP. Repetition exposes
+            // the leak, and the nonrecursive probe touches the stack on every
+            // iteration so an imbalance traps at the stack's guard page.
+            let result = check
+                .call(123, condition)
+                .with_context(|| format!("prefix={prefix_count}, condition={condition}"))?;
+            assert_eq!(result, expected, "prefix={prefix_count}, condition={condition}");
+        }
+    }
+    Ok(())
 }
